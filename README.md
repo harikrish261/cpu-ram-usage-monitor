@@ -41,6 +41,7 @@ $node app.js
 and load localhost:9000 in browser
 
 
+
 For windows::
 
 Download the repo directly or clone it using following git url
@@ -56,4 +57,6 @@ run "npm install" command from your command prompt
 Install redis server (https://github.com/microsoftarchive/redis/releases/download/win-3.0.504/Redis-x64-3.0.504.msi)
 
 Go to the source folder and run "node app" command
+
+and load localhost:9000 in browser
 
