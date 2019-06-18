@@ -48,15 +48,15 @@ Download the repo directly or clone it using following git url
 https://github.com/harikrish261/cpu-ram-usage-monitor.git
 
 Once you unzip/clone the repo execute the below commands to
-install prerequisites like node.js and redis and run the app
+install prerequisites.
 
-Download and install node.js from website (https://nodejs.org/dist/v10.16.0/node-v10.16.0-x64.msi)
+1. Download and install node.js from website (https://nodejs.org/dist/v10.16.0/node-v10.16.0-x64.msi)
 
 run "npm install" command from your command prompt
 
-Install redis server (https://github.com/microsoftarchive/redis/releases/download/win-3.0.504/Redis-x64-3.0.504.msi)
+2. Install redis server (https://github.com/microsoftarchive/redis/releases/download/win-3.0.504/Redis-x64-3.0.504.msi)
 
-Go to the source folder and run "node app" command
+Go to the source folder of the code(cpu-ram-usage-monitor) which is downloaded from repo and run "node app" command
 
-and load localhost:9000 in browser
+3.load localhost:9000 in browser
 
