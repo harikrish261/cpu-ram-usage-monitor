@@ -1,0 +1,1018 @@
+AWS credentials:
+awsgauravgarg
+TA_DEV03
+Harikrishna@261261261
+
+ssh -i hdptiger.pem  ec2-user@52.66.106.159 -- login to Star server
+ssh -i hdptiger.pem  ec2-user@13.127.117.56 -- login to star server 78 machine
+
+SBT version = 0.13.16
+Scala version = 2.10.5
+
+ssh 10.0.0.78 from filezilla 13.127.117.56
+
+ssh -D 8080 -i hdptiger.pem ec2-user@52.66.106.159
+
+spark-shell --packages com.databricks:spark-csv_2.11:1.2.0 --master yarn --num-executors 47 --executor-memory 6g --executor-cores 3
+spark-shell --num-executors 30 --executor-cores 2 --packages com.databricks:spark-csv_2.11:1.2.0 --driver-memory 2g --executor-memory 4g --master yarn
+
+
+spark-shell --num-executors 30 --executor-cores 2 --packages com.databricks:spark-csv_2.11:1.2.0 --driver-memory 2g --executor-memory 4g --master yarn --jars /usr/hdp/2.6.1.0-129/hive/lib/postgresql-jdbc.jar,/usr/hdp/current/hive-client/auxlib/json-serde-1.3.8-jar-with-dependencies.jar,/usr/hdp/current/hive-client/auxlib/json-udf-1.3.8-jar-with-dependencies.jar,/usr/hdp/current/hive-client/auxlib/hadoop-lzo-0.6.0.2.6.1.0-129.jar,/usr/hdp/current/hive-client/auxlib/hadoop-lzo-0.6.0.2.6.1.0-129-javadoc.jar,/usr/hdp/current/hive-client/auxlib/hadoop-lzo-0.6.0.2.6.1.0-129-sources.jar
+
+spark-shell --packages com.databricks:spark-csv_2.11:1.2.0 --jars /usr/hdp/2.6.1.0-129/hive/lib/postgresql-jdbc.jar, /usr/hdp/2.6.1.0-129/hive/lib/postgresql-42.1.4.jar
+
+yarn application -list RUNNING -- check the running applications
+
+ps xw - to check the process by pid
+
+psql --host=star-dl-pg.chlbp5n9mg89.ap-south-1.rds.amazonaws.com --port=5432 --username star_dl_admin --dbname=ops_reporting_db -- login to psql
+
+t1gerdl1
+
+\copy barc_weekly_error to '/home/ec2-user/hari/barc_weekly_error_27_03_3.csv' WITH (FORMAT CSV, HEADER); -- for downloading a table as csv
+
+/home/ec2-user/PP_validation/queues/tatasky_pp
+
+---------------------------------------------------------------
+15+
+15+ A
+F 15+ AB
+F15+
+M 15+
+M 15+ AB
+UNIVERSE
+are the targets present and 251182 is the count before 2288542
+
+select * from barc_weekly_data where year = "2017" and week = "18" and regions = "null";
+OK
+Time taken: 0.587 seconds
+hive> select * from barc_weekly_data where year = "2017" and week = "18" and regions = null;
+OK
+Time taken: 0.511 seconds
+hive> select * from barc_weekly_data where year = "2017" and week = "18" and target = null;
+OK
+Time taken: 0.519 seconds
+hive> select * from barc_weekly_data where year = "2017" and week = "18" and channel = null;
+OK
+Time taken: 0.942 seconds
+hive> select * from barc_weekly_data where year = "2017" and week = "18" and timeband = null;
+OK
+Time taken: 0.599 seconds
+hive> select * from barc_weekly_data where year = "2017" and week = "18" and rat_percent_av_wg = null;
+OK
+Time taken: 0.532 seconds
+hive> select * from barc_weekly_data where year = "2017" and week = "18" and impressions_av_wg = null;
+OK
+Time taken: 0.512 seconds
+hive> select * from barc_weekly_data where year = "2017" and week = "18" and cov_sum = null;
+OK
+Time taken: 0.67 seconds
+hive> select * from barc_weekly_data where year = "2017" and week = "18" and cov_percent_sum = null;
+OK
+Time taken: 0.513 seconds
+hive> select * from barc_weekly_data where year = "2017" and week = "18" and shr_percent_org = null;
+OK
+Time taken: 0.7 seconds
+hive> select * from barc_weekly_data where year = "2017" and week = "18" and target_av_val = null;
+
+
+250599231 - row count of barc_weekly_data
+
+251602 - row count
+
+Barc 30min csv to orc
+nohup spark-submit --packages com.databricks:spark-csv_2.11:1.2.0 --class StarBarc30minToOrc --master yarn --queue jobs --num-executors 25 --executor-memory 2g /home/ec2-user/hari/jars/starbarc30mintoorc_2.10-1.0.jar 2018 06 barc barc_30min_data_reviced >  /ebs_1/yarn_logs/hari/30Min/2018_06.txt 2>&1 &
+
+BARC PP Summary kylin
+nohup spark-submit --packages com.databricks:spark-csv_2.11:1.2.0 --class Star_Barc_PP_Summary_Kylin --master yarn --queue jobs --num-executors 6 --executor-memory 2g /home/ec2-user/hari/jars/starbarc_pp_summary_kylin_2.10-1.0.jar 2017 40 barc barc_pp_data_summary_kylin >  /ebs_1/yarn_logs/hari/PP_kylin/2017_40.txt 2>&1 &
+
+BARC 30Min reviced version
+nohup spark-submit --packages com.databricks:spark-csv_2.11:1.2.0 --class barc_30Min_modification --master yarn --queue jobs --num-executors 25 --executor-memory 2g /home/ec2-user/hari/jars/starbarc_30min_reviced_2.10-1.0.jar 2016 40 barc barc_30min_data_reviced >  /ebs_1/yarn_logs/hari/30Min/2016_40.txt 2>&1 &
+
+
+Sports Summary
+nohup spark-submit --packages com.databricks:spark-csv_2.11:1.2.0 --class sportsFile_Conversion --master yarn --queue jobs --num-executors 3 /home/ec2-user/hari/jars/sports_summary_2.10-1.0.jar >  /ebs_1/yarn_logs/hari/sports/sports_summary.txt 2>&1 &
+
+BARC TO PP ORC CONVERSION
+nohup spark-submit --packages com.databricks:spark-csv_2.11:1.2.0 --class Star_Barc_PP_Summary --master yarn --queue jobs --num-executors 9 --executor-memory 2g /home/ec2-user/hari/jars/starbarc_pp_summary_2.10-1.0.jar 2016 09 barc barc_pp_data_summary >  /ebs_1/yarn_logs/hari/PP/2016_09.txt 2>&1 &
+
+
+CHANNEL NAME VALIDATION::
+nohup spark-submit --packages com.databricks:spark-csv_2.11:1.2.0 --class channelNameValidation --master yarn --queue jobs --num-executors 3 /home/ec2-user/hari/jars/channelnamevalidation_2.10-1.0.jar >  /ebs_1/yarn_logs/hari/channelNameValidation_070918_1.log 2>&1 &
+
+StarBarcPPValidation
+nohup spark-submit --packages com.databricks:spark-csv_2.11:1.2.0 --jars /usr/hdp/2.6.1.0-129/hive/lib/postgresql-jdbc.jar --class Star_Barc_PP_Business_Validation --master yarn --queue jobs --num-executors 3 /home/ec2-user/hari/jars/startbarc_pp_validation_2.10-1.0.jar 2017 25 barc barc_pp_data_summary > /ebs_1/yarn_logs/hari/PP_validation/2017_25.txt 2>&1 &
+
+nohup spark-submit --packages com.databricks:spark-csv_2.11:1.2.0 --jars /usr/hdp/2.6.1.0-129/hive/lib/postgresql-jdbc.jar --class StarBarcWeeklyValidation --master yarn --queue jobs --num-executors 3 /home/ec2-user/hari/jars/startbarcweeklyvalidation_2.10-1.0.jar 2017 31 barc barc_weekly_data > /ebs_1/yarn_logs/hari/2017_31_BarcWeeklyValidation.txt 2>&1 &
+
+nohup spark-submit --packages com.databricks:spark-csv_2.11:1.2.0 --class Star_Barc_Weekly_Csv_To_Orc_New --master yarn --queue jobs --num-executors 3 /home/ec2-user/hari/jars/barc_weekly_2.10-1.0_2018.jar 2018 17 barc barc_weekly_data >  /ebs_1/yarn_logs/hari/2018_17.txt 2>&1 &
+
+nohup spark-submit --packages com.databricks:spark-csv_2.11:1.2.0 --class Star_Tatasky_PP_Csv_To_Orc --master yarn --queue jobs --num-executors 9 /home/ec2-user/spark/jars/star_tatasky_pp_csv_to_orc_2.10-0.1.jar 2015 51 tatasky tatasky_pp_data 2 32TG >  /ebs_1/yarn_logs/tatasky_pp/convert/32TG_new/32TG_51_2015_2.txt 2>&1 &
+
+nohup spark-submit --packages com.databricks:spark-csv_2.11:1.2.0 --class Star_Tatasky_PP_Csv_To_Orc --master yarn --queue jobs --num-executors 9 /home/ec2-user/spark/jars/star_tatasky_pp_csv_to_orc_2.10-0.1.jar 2015 51 tatasky tatasky_pp_data 1 7TG >  /ebs_1/yarn_logs/tatasky_pp/convert/32TG_new/7TG_51_2015_1.txt 2>&1 &
+
+
+nohup spark-submit --packages com.databricks:spark-csv_2.11:1.2.0 --class Star_Tatasky_PP_Csv_To_Orc --master yarn --queue jobs --num-executors 9 /home/ec2-user/spark/jars/star_tatasky_pp_csv_to_orc_2.10-0.1.jar 2015 51 tatasky tatasky_pp_data 2 7TG >  /ebs_1/yarn_logs/tatasky_pp/convert/32TG_new/7TG_51_2015_2.txt 2>&1 &
+
+
+nohup spark-submit --packages com.databricks:spark-csv_2.11:1.2.0 --class Star_Tatasky_PP_Csv_To_Orc --master yarn --queue jobs --num-executors 9 /home/ec2-user/spark/jars/star_tatasky_pp_csv_to_orc_2.10-0.1.jar 2015 51 tatasky tatasky_pp_data 1 21TG >  /ebs_1/yarn_logs/tatasky_pp/convert/32TG_new/21TG_51_2015_1.txt 2>&1 &
+
+
+nohup spark-submit --packages com.databricks:spark-csv_2.11:1.2.0 --class Star_Tatasky_PP_Csv_To_Orc --master yarn --queue jobs --num-executors 9 /home/ec2-user/spark/jars/star_tatasky_pp_csv_to_orc_2.10-0.1.jar 2015 51 tatasky tatasky_pp_data 2 21TG >  /ebs_1/yarn_logs/tatasky_pp/convert/32TG_new/21TG_51_2015_2.txt 2>&1 &
+
+
+
+
+--------------------
+
+
+
+
+spark-submit --packages com.databricks:spark-csv_2.11:1.2.0 --class Star_Tatasky_PP_Csv_To_Orc --master yarn --queue jobs --num-executors 9 /home/ec2-user/spark/jars/star_tatasky_pp_csv_to_orc_2.10-0.1.jar 2016 $i tatasky tatasky_pp_data 2 32TG > /ebs_1/yarn_logs/tatasky_pp/convert/32TG_new/32TG_41_2015_2.txt 2>&1 
+
+
+spark-submit --packages com.databricks:spark-csv_2.11:1.2.0 --class Star_Tatasky_PP_Csv_To_Orc --master yarn --queue default --num-executors 9 /home/ec2-user/spark/jars/star_tatasky_pp_csv_to_orc_2.10-0.1.jar $i $j tatasky tatasky_pp_data $k 21TG > /home/ec2-user/yarn_logs/tatasky_pp/convert/21TG_${j}_${i}_${k}.txt 2>&1
+
+
+
+
+
+
+
+
+GYAN YOGI -- missing data
+INDIA VOICE -- old name is not present 
+MUNSIF TV  --  missing data
+SONY YAY -- with extra letter 'v'
+4TV NEWS -- missing data
+
+SADHNA TV -- system error(by me)
+FREE TV -- sytem error(by me)
+MAHARASHTRA ONE -- system error(by me)
+
+STUDIO ONE HD -- missing data
+MALAI MURASU -- missing data 
+
+
+
+replace in generated channel name file (tbr),(nw)(na)
+replace in csv (given file)(na)(tbr)(v)(nw)
+
+
+week 34 ::
+ {"LIFE OK HD","LIFE OK","ZEE CAFÉ"}
+
+week 18 ::
+ {"SONY YAY","ZEE CAFÉ"}
+
+week 22 ::
+ {"STAR SPORTS 1 HD","STAR SPORTS SELECT 1 HD","STAR SPORTS 1 HD HINDI","STAR SPORTS 2 HD(V)","STAR SPORTS SELECT 2 HD","ZEE CAFÉ","STAR SPORTS 1 HINDI"}
+{"STAR SPORTS SELECT HD1","STAR SPORTS HD1","STAR SPORTS SELECT HD2","STAR SPORTS 3","STAR SPORTS HD2(V)","STAR SPORTS HD3(V)"}
+
+
+
+
+
+
+
+
+
+
+create EXTERNAL TABLE pp_summary_converted(SNo String, Regions string, Target string, Channel string, 
+Description string,Week_w string, Year_y string, `date` string,Week_Day string,Ev_Type string,Programme_Theme string,Programme_Genre string,Sport string,Length decimal(16,6),
+rat_percent decimal(16,6),Impressions_Av_Wg decimal(16,6),Cov_percent_Sum decimal(16,6),Cov_Sum decimal(16,6), Shr_percent_Org decimal(16,6),Target_Av_Val decimal(16,6))
+COMMENT 'pp_summary_rawdata_into_week_year'
+PARTITIONED BY (year string, week string)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
+
+LOCATION 's3a://star-dl-barc/converted/PP_Summary/';
+
+
+(" ", Regions, Target, Channel, Description, Week, Year, Date, Week Day, Ev. Type, Programme Theme, Programme Genre, Sport, Length [sec] {Sum}, rat% {Av(Wg)}, Impressions�000 {Av(Wg)}, Cov% {Sum}, Cov�000 {Sum}, Shr% {Org}, Target�000 {Av(Val)})
+
+
+ s3://barcagg/sports_pp/w12-2018/Sports/Live Sports Summary (Sports Channels) MKT 4 20180317 - 20180323.txt to s3://star-dl-barc/converted/PP_Summary/year=2018/week=12/Live Sports Summary (Sports Channels) MKT 4 20180317 - 20180323.txt
+
+
+s3://barcagg/sports_pp/8_2017_onwards/Non Sports/Live Sports Summary (Non-Sports Channels) MKT 1 wk1'18-10'18.txt to s3://star-dl-barc/raw/pp_summary/year=2018
+
+
+aws s3 cp "s3://barcagg/sports_pp/8_2017_onwards/Non Sports/Live Sports Summary (Non-Sports Channels) MKT 2 wk8'17-52'17.txt" "s3://star-dl-barc/raw/pp_summary/year=2017/Live Sports Summary (Non-Sports Channels) MKT 2 wk8'17-52'17.txt"
+
+
+ val s3_sourcefile = "s3a://star-dl-barc/raw/pp_summary/year=2017/"
+val df = sqlContext.read.format("com.databricks.spark.csv").
+      option("header", "true").
+      option("delimiter", ",").load(s3_sourcefile)
+
+val new_df=df.withColumnRenamed("Length [sec] {Sum}", "length_sec_sum").
+      withColumnRenamed("rat% {Av(Wg)}", "rat_percent_Av_Wg").
+      withColumnRenamed("Impressions�000 {Av(Wg)}","Impressions_Av_Wg").
+      withColumnRenamed("Cov�000 {Sum}","Cov_Sum").
+      withColumnRenamed("Cov% {Sum}", "Cov_percent_Sum").
+      withColumnRenamed("Shr% {Org}","Shr_percent_Org").
+      withColumnRenamed("Target�000 {Av(Val)}","Target_Av_Val").
+      withColumnRenamed("Week Day","Week_Day").
+      withColumnRenamed("Ev. type","Ev_Type").
+      withColumnRenamed("Programme Theme","Programme_Theme").
+      withColumnRenamed("Programme Genre","Programme_Genre")
+      
+new_df.coalesce(1).registerTempTable("new_df")
+
+val new_df1 = new_df.withColumnRenamed(" ","SNo")
+new_df1.coalesce(1).registerTempTable("new_df1")
+
+sqlContext.setConf("hive.exec.dynamic.partition", "true")
+    sqlContext.setConf("hive.exec.dynamic.partition.mode", "nonstrict")
+
+sqlContext.sql(s"INSERT INTO TABLE barc.pp_summary_converted" +
+      s" PARTITION(`year`,`week`) " +
+      "SELECT  SNo, upper(Regions), upper(Target), upper(Channel), Description, Week , Year," +
+      "Date,Week_Day, Ev_Type, Programme_Theme, Programme_Genre,Sport," +
+      "cast(length_sec_sum as DECIMAL(16,6)) as Length,"+
+      "cast(rat_percent_Av_Wg as DECIMAL(16,6)) as rat_percent,"+	
+      "cast(Impressions_Av_Wg as DECIMAL(16,6)) as Impressions_Av_Wg, " +
+      "cast(Cov_Sum as DECIMAL(16,6)) as Cov_Sum, " +
+      "cast(Cov_percent_Sum as DECIMAL(16,6)) as Cov_percent_Sum, " +
+      "cast(Shr_percent_Org as DECIMAL(16,6)) as Shr_percent_Org, " +
+      "cast(Target_Av_Val as DECIMAL(16,6)) as Target_Av_Val, " +
+       "Year,Week "+
+      "FROM new_df1")
+
+
+sqlContext.sql(s"SELECT  upper(Regions), upper(Target), upper(Channel), Description, " +
+      "Date as date,Week_Day, Ev_Type, Programme_Theme, Programme_Genre,Sport," +
+      "cast(length_sec_sum as DECIMAL(16,6)) as Length,"+
+      "cast(rat_percent_Av_Wg as DECIMAL(16,6)) as rat_percent,"+	
+      "cast(Impressions_Av_Wg as DECIMAL(16,6)) as Impressions_Av_Wg, " +
+      "cast(Cov_Sum as DECIMAL(16,6)) as Cov_Sum, " +
+      "cast(Cov_percent_Sum as DECIMAL(16,6)) as Cov_percent_Sum, " +
+      "cast(Shr_percent_Org as DECIMAL(16,6)) as Shr_percent_Org, " +
+      "cast(Target_Av_Val as DECIMAL(16,6)) as Target_Av_Val, " +
+       "Year,Week "+
+      "FROM new_df1")
+
+val numList = List(01,02,03,04,05,06,07,08,09,10);
+for(i <- 10 to 12){
+      var df1 = sqlContext.sql(s"select * from df where week='"+i.toString+"'")
+      df1.coalesce(1).write.format("com.databricks.spark.csv").option("header", "true").save("s3a://starcompanybucket/converted/PP_Summary/year=2018/week="+i+"/")
+    }
+
+
+sqlContext.sql(s"INSERT OVERWRITE TABLE ${dbname}.${tablename}" +
+        s" PARTITION(`year`=${year_nbr},`week`=${week_nbr}, Market) " +
+        "SELECT  r_Region, Target, Channel," +
+        "regexp_replace(Date, '/', '-'), " +
+        "SUBSTRING(`Date`,6,2) AS Month, Week_Day, Description, NULL, Ev_Type, " +
+        "CASE WHEN Programme_Theme = 'n.a' THEN NULL ELSE Programme_Theme END, " +
+        "CASE WHEN Programme_Genre = 'n.a' THEN NULL ELSE Programme_Genre END, " +
+        "NULL, NULL, " +
+        "Start_Time, Start_Time_Roundoff, " +
+        "CASE WHEN CAST(SPLIT(Start_Time_Roundoff, ':')[0] AS INT) >= 18 and CAST(SPLIT(Start_Time_RoundOff, ':')[0] AS INT) < 23 " +
+        "THEN 'Prime' ELSE 'Non Prime' END AS PT_NPT, " +
+        "End_Time, End_Time_Roundoff, Length, rat_percent_Av_Wg , Impressions_Av_Wg , " +
+        "Rch_Av_Wg, Rch_percent_Av_Wg , " +
+        "Shr_percent_Org , Target_Av_Val, " +
+        "TRIM(REGEXP_REPLACE(REGEXP_REPLACE(REGEXP_REPLACE(REGEXP_REPLACE(SPLIT(r_Region, '-')[0],'\\\\s',''),'\\\\(Rural\\\\)\\\\|\\\\(Urban\\\\)\\\\|Rural|Urban',''),'/','-'),'Rural','')) AS Market " +
+        "FROM merge_df")
+
+
+
+CREATE EXTERNAL TABLE `common.week_channel_map_csv_march`(
+  `source` string, 
+  `channel_name` string, 
+  `old_channel_names` string, 
+  `network` string, 
+  `genre` string, 
+  `type` string, 
+  `dt` date, 
+  `display_name` string)
+COMMENT 'Week-Source-Channel-OldName-Network-Genre-Map-CSV format till week 9 2018'
+PARTITIONED BY ( 
+  `year` string, 
+  `week` string)
+ROW FORMAT DELIMITED 
+  FIELDS TERMINATED BY ',' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.mapred.TextInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+LOCATION
+  's3a://star-dl-common/raw/channel_genre_network_oldname_mapping_092018'
+
+
+do an outerjoin and create a new column either df1 value or df2 value
+
+
+CREATE EXTERNAL TABLE `barc_30min_data_reviced`(
+  `regions` string, 
+  `target` string, 
+  `channel` string, 
+  `date` string, 
+  `week_day` string, 
+  `timeband` string, 
+  `pt_npt` string, 
+  `rat_percent_av_wg` decimal(16,6), 
+  `impressions_av_wg` decimal(16,6), 
+  `rch_av_wg` decimal(16,6), 
+  `rch_percent_av_wg` decimal(16,6), 
+  `shr_percent_org` decimal(16,6), 
+  `target_av_val` decimal(16,6))
+PARTITIONED BY ( 
+  `year` string, 
+  `week` string, 
+  `market` string)
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.ql.io.orc.OrcSerde' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.orc.OrcInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat'
+LOCATION
+  's3a://star-dl-barc/transformed/30Minute'
+
+CREATE EXTERNAL TABLE `barc_pp_data_summary_kylin`(
+  `regions` string, 
+  `target` string, 
+  `channel` string, 
+  `market` string, 
+  `month` string, 
+  `week_day` string, 
+  `description` string, 
+  `level` string, 
+  `ev_type` string, 
+  `programme_theme` string, 
+  `programme_genre` string, 
+  `promo_type` string, 
+  `promo_category` string, 
+  `start_time` string, 
+  `start_time_roundoff` string, 
+  `pt_npt` string, 
+  `end_time` string, 
+  `end_time_roundoff` string, 
+  `length_sec` int, 
+  `rat_percent_av_wg` decimal(16,6), 
+  `impression_000_av_wg` decimal(16,6), 
+  `reach_000_av_wg` decimal(16,6), 
+  `reach_percent_av_wg` decimal(16,6), 
+  `share_percent_org` decimal(16,6), 
+  `target_000_av_val` decimal(16,6),
+`impression_length_sec` decimal(16,6),
+  `rat_reach_av_wg` decimal(16,6),
+  `rat_length` decimal(16,6),
+  `rat_target` decimal(16,6))
+PARTITIONED BY ( 
+  `year` string, 
+  `week` string, 
+  `date` string)
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.ql.io.orc.OrcSerde' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.orc.OrcInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat'
+LOCATION
+  's3a://star-dl-barc/transformed/PP_Summary_kylin'
+TBLPROPERTIES (
+  'transient_lastDdlTime'='1523946680')
+--------------------------------------
+
+CREATE EXTERNAL TABLE `viewership_v1`(
+  `advertising_id` string COMMENT 'from deserializer', 
+  `location_source` string COMMENT 'from deserializer', 
+  `channel_name` string COMMENT 'from deserializer', 
+  `channel_genre` string COMMENT 'from deserializer', 
+  `show_name` string COMMENT 'from deserializer', 
+  `show_genre` string COMMENT 'from deserializer', 
+  `language` string COMMENT 'from deserializer', 
+  `record_timestamp` bigint COMMENT 'from deserializer', 
+  `duration` int COMMENT 'from deserializer', 
+  `device` string COMMENT 'from deserializer', 
+  `device_type` string COMMENT 'from deserializer', 
+  `grid_id` string COMMENT 'from deserializer', 
+  `city` string COMMENT 'from deserializer', 
+  `state` string COMMENT 'from deserializer', 
+  `lat` double COMMENT 'from deserializer', 
+  `long` double COMMENT 'from deserializer', 
+  `location_class` string COMMENT 'from deserializer', 
+  `location_granularities` array<string> COMMENT 'from deserializer')
+PARTITIONED BY ( 
+  `month` string, 
+  `date` string)
+ROW FORMAT SERDE 
+  'org.openx.data.jsonserde.JsonSerDe' 
+WITH SERDEPROPERTIES ( 
+  'ignore.malformed.json'='true') 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.mapred.TextInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+LOCATION
+  's3a://star-dl-zapr/raw/viewership_v1'
+TBLPROPERTIES (
+  'transient_lastDdlTime'='1524825914')
+
+
+CREATE EXTERNAL TABLE `viewership_v1_orc`(
+  `advertising_id` string, 
+  `location_source` string,
+  `channel_name` string, 
+  `channel_genre` string, 
+  `show_name` string, 
+  `show_genre` string, 
+  `language` string, 
+  `recod_timestamp` timestamp, 
+  `duration` int,
+  `ll_duration` int, 
+  `device` string, 
+  `device_type` string, 
+  `grid_id` string, 
+  `city` string, 
+  `state` string, 
+  `lat` double, 
+  `long` double, 
+  `location_class` string, 
+  `location_granularities` string, 
+  `location_granularities_code` int, 
+  `start_time_ist` timestamp, 
+  `weekday` string, 
+  `pt_npt` int, 
+  `timeband` string)
+COMMENT 'Zapr ORC table with partition in S3'
+PARTITIONED BY ( 
+  `year` string, 
+  `week` string,
+  `date` string)
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.ql.io.orc.OrcSerde' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.orc.OrcInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat'
+LOCATION
+  's3a://star-dl-zapr/transformed/viewership_v1'
+TBLPROPERTIES (
+  'transient_lastDdlTime'='1516781669')
+
+nohup spark-submit --class ZaprViewershipTo_Orc --jars /usr/hdp/current/hive-client/auxlib/json-serde-1.3.8-jar-with-dependencies.jar,/usr/hdp/current/hive-client/auxlib/json-udf-1.3.8-jar-with-dependencies.jar,/usr/hdp/current/hive-client/auxlib/hadoop-lzo-0.6.0.2.6.1.0-129.jar,/usr/hdp/current/hive-client/auxlib/hadoop-lzo-0.6.0.2.6.1.0-129-javadoc.jar,/usr/hdp/current/hive-client/auxlib/hadoop-lzo-0.6.0.2.6.1.0-129-sources.jar --master yarn --executor-memory 4g /home/ec2-user/hari/jars/zaperviewershiprawtoorc_2.10-1.0.jar 2018-02-26 1	  > /home/ec2-user/hari/zapr/log_zapr_viewership2017-09-25.log 2>&1 &
+
+CREATE EXTERNAL TABLE `viewership_v2_orc`(
+  `advertising_id` string, 
+  `location_source` string,
+  `channel_name` string, 
+  `channel_genre` string, 
+  `show_name` string, 
+  `show_genre` string, 
+  `language` string, 
+  `recod_timestamp` timestamp, 
+  `duration` int,
+  `ll_duration` int,
+  `adjusted_start_time` timestamp,
+  `adjusted_end_time` timestamp, 
+  `device` string, 
+  `device_type` string, 
+  `grid_id` string, 
+  `city` string, 
+  `state` string, 
+  `lat` double, 
+  `long` double, 
+  `location_class` string, 
+  `location_granularities` string, 
+  `location_granularities_code` int, 
+  `start_time_ist` timestamp, 
+  `weekday` string, 
+  `pt_npt` int, 
+  `timeband` string)
+COMMENT 'Zapr ORC table with partition in S3'
+PARTITIONED BY ( 
+  `year` string, 
+  `week` string,
+  `date` string)
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.ql.io.orc.OrcSerde' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.orc.OrcInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat'
+LOCATION
+  's3a://star-dl-zapr/transformed/viewership_v2'
+TBLPROPERTIES (
+  'transient_lastDdlTime'='1516781669')
+
+CREATE EXTERNAL TABLE `sessionization`(
+  `advertising_id` string, 
+  `location_source` string,
+  `channel_name` string, 
+  `channel_genre` string, 
+  `show_name` string, 
+  `show_genre` string, 
+  `language` string, 
+  `duration` int,
+  `device` string, 
+  `device_type` string, 
+  `grid_id` string, 
+  `city` string, 
+  `state` string, 
+  `lat` double, 
+  `long` double, 
+  `location_class` string, 
+  `location_granularities` string, 
+  `start_time` timestamp,
+  `end_time` timestamp, 
+  `weekday` string, 
+  `pt_npt` int, 
+  `timeband` string)
+COMMENT 'Zapr ORC table with partition in S3'
+PARTITIONED BY ( 
+  `year` string, 
+  `week` string,
+  `date` string)
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.ql.io.orc.OrcSerde' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.orc.OrcInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat'
+LOCATION
+  's3a://star-dl-zapr/transformed/sessionization'
+TBLPROPERTIES (
+  'transient_lastDdlTime'='1516781669')
+
+
+nohup spark-submit --packages com.databricks:spark-csv_2.11:1.2.0 --class sessionization_v1 --master yarn --num-executors 40 --executor-cores 2 --executor-memory 4g --driver-memory 2g --conf "spark.yarn.driver.memoryOverhead=2048" --conf "spark.yarn.executor.memoryOverhead=2048" /home/ec2-user/hari/jars/zapractivestoorc_2.10-1.0.1.jar 2018-04-15 0 > /home/ec2-user/hari/zapr/sessionization/log_sessionization_Apr15.log 2>&1 &
+
+nohup spark-submit --packages com.databricks:spark-csv_2.11:1.2.0 --class sessionization_v2 --master yarn --queue jobs --num-executors 20 --executor-cores 3 --executor-memory 6g --driver-memory 2g --deploy-mode cluster --jars /usr/hdp/current/spark-client/lib/datanucleus-api-jdo-3.2.6.jar,/usr/hdp/current/spark-client/lib/datanucleus-core-3.2.10.jar,/usr/hdp/current/spark-client/lib/datanucleus-rdbms-3.2.9.jar,/usr/hdp/current/spark-client/lib/postgresql-42.1.4.jar --files /usr/hdp/current/spark-client/conf/hive-site.xml --conf "spark.yarn.driver.memoryOverhead=2048" --conf "spark.yarn.executor.memoryOverhead=2048" /home/ec2-user/hari/jars/zapractivestoorc_2.10-1.0.jar 2017-10-05 9 > /home/ec2-user/hari/zapr/sessionization/log_sessionization_2017-10-28_reviced.log 2>&1 &
+
+nohup spark-submit --packages com.databricks:spark-csv_2.11:1.2.0 --class sessionization_v2 --master yarn --queue jobs --num-executors 55 --executor-cores 3 --executor-memory 6g --driver-memory 2g --deploy-mode cluster --jars /usr/hdp/current/spark-client/lib/datanucleus-api-jdo-3.2.6.jar,/usr/hdp/current/spark-client/lib/datanucleus-core-3.2.10.jar,/usr/hdp/current/spark-client/lib/datanucleus-rdbms-3.2.9.jar,/usr/hdp/current/spark-client/lib/postgresql-42.1.4.jar --files /usr/hdp/current/spark-client/conf/hive-site.xml --conf "spark.yarn.driver.memoryOverhead=2048" --conf "spark.yarn.executor.memoryOverhead=2048" /home/ec2-user/hari/jars/zapractivestoorc_2.10-1.0.jar 2018-09-28 10 > /home/ec2-user/hari/zapr/sessionization/log_sessionization_2018-09-28_reviced_1.log 2>&1 &
+
+nohup spark-submit --packages com.databricks:spark-csv_2.11:1.2.0 --class sessionization_v3 --master yarn --queue jobs --num-executors 47 --executor-cores 2 --executor-memory 6g --driver-memory 2g --conf "spark.yarn.driver.memoryOverhead=2048" --conf "spark.yarn.executor.memoryOverhead=2048" /home/ec2-user/hari/jars/zapractivestoorc_2.10-1.0.jar 2018-09-30 0 > /home/ec2-user/hari/zapr/sessionization/log_sessionization_2018-09-30_reviced_1.log 2>&1 &
+
+
+nohup spark-submit --packages com.databricks:spark-csv_2.11:1.2.0 --class sessionization_v4 --master yarn --queue jobs --num-executors 47 --executor-cores 2 --executor-memory 6g --driver-memory 2g --conf "spark.yarn.driver.memoryOverhead=2048" --conf "spark.yarn.executor.memoryOverhead=2048" /home/ec2-user/hari/jars/zapractivestoorc_2.10-1.0.jar 2018-10-12 0 > /home/ec2-user/hari/zapr/sessionization/log_sessionization_2018-10-12_reviced_1.log 2>&1 &
+
+
+CREATE EXTERNAL TABLE `sessionization_v3`(
+  `advertising_id` string, 
+  `channel_name` string, 
+  `channel_genre` string, 
+  `show_name` string, 
+  `show_genre` string, 
+  `duration` int,
+  `device` string, 
+  `device_type` string, 
+  `grid_id` string,  
+  `start_time` timestamp,
+  `end_time` timestamp, 
+  `weekday` string, 
+  `pt_npt` int, 
+  `timeband` string,
+  `prg_start_time` timestamp,
+  `prg_end_time` timestamp)
+COMMENT 'Zapr ORC table with partition in S3'
+PARTITIONED BY ( 
+  `year` string, 
+  `week` string,
+  `date` string)
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.ql.io.orc.OrcSerde' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.orc.OrcInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat'
+LOCATION
+  's3a://star-dl-zapr/transformed/sessionization_v3'
+TBLPROPERTIES (
+  'transient_lastDdlTime'='1516781669')
+
+---------------------------------------------------------------------------------
+CREATE EXTERNAL TABLE `raw_actives_v1`(
+  `user_id` string COMMENT 'from deserializer', 
+  `advertising_id` string COMMENT 'from deserializer', 
+  `state` string COMMENT 'from deserializer', 
+  `location_class` string COMMENT 'from deserializer', 
+  `city` string COMMENT 'from deserializer', 
+  `locationsource` string COMMENT 'from deserializer', 
+  `location_granularities` array<string> COMMENT 'from deserializer', 
+  `timestamp` bigint COMMENT 'from deserializer', 
+  `sampling_rate` int COMMENT 'from deserializer')
+PARTITIONED BY ( 
+  `month` string, 
+  `date` string)
+ROW FORMAT SERDE 
+  'org.openx.data.jsonserde.JsonSerDe' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.mapred.TextInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+LOCATION
+  's3a://star-dl-zapr/raw/raw-actives'
+
+
+
+CREATE EXTERNAL TABLE `raw_actives_v1_orc`(
+  `user_id` string, 
+  `advertising_id` string, 
+  `state` string, 
+  `location_class` string, 
+  `city` string, 
+  `location_granularities` string, 
+  `timestamp` timestamp, 
+  `timestamp_ist` timestamp,
+  `sampling_rate` int, 
+  `month` string)
+PARTITIONED BY ( 
+  `year` string, 
+  `week` string, 
+  `date` string, 
+  `locationsource` string)
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.ql.io.orc.OrcSerde' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.orc.OrcInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat'
+LOCATION
+  's3a://star-dl-zapr/transformed/raw_actives_v1'
+TBLPROPERTIES (
+  'last_modified_by'='ec2-user', 
+  'last_modified_time'='1526430984', 
+  'transient_lastDdlTime'='1526430984')
+
+
+nohup spark-submit --class ZaprRawActivesToOrc --jars /usr/hdp/current/hive-client/auxlib/json-serde-1.3.8-jar-with-dependencies.jar,/usr/hdp/current/hive-client/auxlib/json-udf-1.3.8-jar-with-dependencies.jar,/usr/hdp/current/hive-client/auxlib/hadoop-lzo-0.6.0.2.6.1.0-129.jar,/usr/hdp/current/hive-client/auxlib/hadoop-lzo-0.6.0.2.6.1.0-129-javadoc.jar,/usr/hdp/current/hive-client/auxlib/hadoop-lzo-0.6.0.2.6.1.0-129-sources.jar --master yarn --num-executors 50 --executor-cores 2 --executor-memory 5g /home/ec2-user/hari/jars/zapractivestoorc_2.10-1.0.jar 2018-09-28 0  > /home/ec2-user/hari/zapr/log_zapr_Actives2018-09-28_updated1.log 2>&1 &
+
+
+nohup spark-submit --class ZaprRawActivesToOrc --jars /usr/hdp/current/hive-client/auxlib/json-serde-1.3.8-jar-with-dependencies.jar,/usr/hdp/current/hive-client/auxlib/json-udf-1.3.8-jar-with-dependencies.jar,/usr/hdp/current/hive-client/auxlib/hadoop-lzo-0.6.0.2.6.1.0-129.jar,/usr/hdp/current/hive-client/auxlib/hadoop-lzo-0.6.0.2.6.1.0-129-javadoc.jar,/usr/hdp/current/hive-client/auxlib/hadoop-lzo-0.6.0.2.6.1.0-129-sources.jar --master yarn --num-executors 20 --executor-cores 2 --executor-memory 5g /home/ec2-user/hari/jars/zapractivestoorc_2.10-1.0.jar 2018-05-28 5  > /home/ec2-user/hari/zapr/log_zapr_Actives2018-05-28_updated.log 2>&1 &
+
+
+nohup spark-submit --packages com.databricks:spark-csv_2.11:1.2.0 --class verifyViewership --master yarn --num-executors 10 --executor-memory 4g --driver-memory 2g /home/ec2-user/hari/jars/zapractivestoorc_2.10-1.0.jar > /home/ec2-user/hari/zapr/log_ViewershipComparing_Feb27.log 2>&1 &
+-------------------------------------------------------------------------------------
+
+CREATE EXTERNAL TABLE `actives_v1`(
+  `user_id` string COMMENT 'from deserializer', 
+  `advertising_id` string COMMENT 'from deserializer', 
+  `state` string COMMENT 'from deserializer', 
+  `location_class` string COMMENT 'from deserializer', 
+  `city` string COMMENT 'from deserializer', 
+  `locationsource` string COMMENT 'from deserializer', 
+  `location_granularities` array<string> COMMENT 'from deserializer')
+PARTITIONED BY ( 
+  `month` string, 
+  `date` string)
+ROW FORMAT SERDE 
+  'org.openx.data.jsonserde.JsonSerDe' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.mapred.TextInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+LOCATION
+  's3a://star-dl-zapr/raw/actives_v1'
+TBLPROPERTIES (
+  'transient_lastDdlTime'='1517218769')
+
+
+
+CREATE EXTERNAL TABLE `actives_v1_orc`(
+  `user_id` string, 
+  `advertising_id` string, 
+  `state` string, 
+  `location_class` string, 
+  `city` string, 
+  `locationsource` string, 
+  `location_granularities` string,
+  `numberOfSignals` int)
+COMMENT 'Zapr Actives table with partition in S3'
+PARTITIONED BY ( 
+  `year` string, 
+  `week` string, 
+  `date` string)
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.ql.io.orc.OrcSerde' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.orc.OrcInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat'
+LOCATION
+  's3a://star-dl-zapr/transformed/actives_v1'
+TBLPROPERTIES (
+  'transient_lastDdlTime'='1517220705')
+
+zaperviewershiprawtoorc_2.10-1.0_Actives.jar
+
+nohup spark-submit --class ZaprActivesToOrc --jars /usr/hdp/current/hive-client/auxlib/json-serde-1.3.8-jar-with-dependencies.jar,/usr/hdp/current/hive-client/auxlib/json-udf-1.3.8-jar-with-dependencies.jar,/usr/hdp/current/hive-client/auxlib/hadoop-lzo-0.6.0.2.6.1.0-129.jar,/usr/hdp/current/hive-client/auxlib/hadoop-lzo-0.6.0.2.6.1.0-129-javadoc.jar,/usr/hdp/current/hive-client/auxlib/hadoop-lzo-0.6.0.2.6.1.0-129-sources.jar --master yarn --executor-memory 2g /home/ec2-user/hari/jars/zaperviewershiprawtoorc_2.10-1.0_Actives.jar 2018-07-27 5  > /home/ec2-user/hari/zapr/log_zapr_Actives_Original_2014-11-16_updated.log 2>&1 &
+
+
+
+select count(*), advertising_id from raw_actives_v1_orc where year ='2018' and week='14' and `date` = '2018-04-02' group by advertising_id
+
+nohup spark-submit --packages com.databricks:spark-csv_2.11:1.2.0 --class RawActivesReport --master yarn --num-executors 10 --executor-memory 4g /home/ec2-user/hari/jars/zapractivestoorc_2.10-1.0.jar 2018-02-01 27 > /home/ec2-user/hari/zapr/log_RawActivesReport_Feb01.log 2>&1 &
+
+5,12,19,26
+----------------------------------------------------------------
+CRATING HIVE TABLE WITH CSV DATA
+
+CREATE EXTERNAL TABLE `rawactives_report`( 
+  `signal_count` int,
+  `advertising_id` string)
+COMMENT 'Zapr RawActivesReport table with partition in S3'
+PARTITIONED BY (`date` string)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
+LOCATION
+  's3a://starcompanybucket/Ram/Zapr_OTR/SampleSubmissionCount_hive'
+tblproperties ("skip.header.line.count"="1");
+
+--------------------------------------------------------------------
+VIEWERSHIP RAW TO ORC WITH LLDURATION
+
+nohup spark-submit --class ZaprViewershiptoOrcV1 --jars /usr/hdp/current/hive-client/auxlib/json-serde-1.3.8-jar-with-dependencies.jar,/usr/hdp/current/hive-client/auxlib/json-udf-1.3.8-jar-with-dependencies.jar,/usr/hdp/current/hive-client/auxlib/hadoop-lzo-0.6.0.2.6.1.0-129.jar,/usr/hdp/current/hive-client/auxlib/hadoop-lzo-0.6.0.2.6.1.0-129-javadoc.jar,/usr/hdp/current/hive-client/auxlib/hadoop-lzo-0.6.0.2.6.1.0-129-sources.jar --master yarn --num-executors 25 --executor-memory 5g /home/ec2-user/hari/jars/zaperviewershiprawtoorc_2.10-1.0.jar 2018-08-21 8  > /home/ec2-user/hari/zapr/log_zapr_viewership2018-08-21_updated.log2 2>&1 &
+
+spark-submit --class ZaprViewershiptoOrcV1 --jars /usr/hdp/current/hive-client/auxlib/json-serde-1.3.8-jar-with-dependencies.jar,/usr/hdp/current/hive-client/auxlib/json-udf-1.3.8-jar-with-dependencies.jar,/usr/hdp/current/hive-client/auxlib/hadoop-lzo-0.6.0.2.6.1.0-129.jar,/usr/hdp/current/hive-client/auxlib/hadoop-lzo-0.6.0.2.6.1.0-129-javadoc.jar,/usr/hdp/current/hive-client/auxlib/hadoop-lzo-0.6.0.2.6.1.0-129-sources.jar --master yarn --num-executors 40 --executor-cores 3 --executor-memory 4g /home/ec2-user/hari/jars/zaperviewershiprawtoorc_2.10-1.0.jar $dt 0  > /home/ec2-user/hari/zapr/log_zapr_viewership$dt.log 2>&1
+--------------------------------------------------------------------
+FOR PROCESSING ACTIVES
+
+ nohup spark-submit --class zapr_raw_actives_to_actives --master yarn --num-executors 10 --executor-memory 3g --executor-cores 2  /home/ec2-user/ram/jar/starzapr_2.10-0.1.jar 2018-08-09 0 > /home/ec2-user/ram/Actives_2018-08-09.log 2>&1 &
+
+---------------------------------------------------------------------	
+
+CREATE EXTERNAL TABLE `enriched_viewership_week_1`(
+channel STRING, pgm_date BIGINT, barc_desc STRING, pgm_start BIGINT, pgm_end BIGINT, advertising_id STRING, ad_desc STRING, ad_start BIGINT, ad_end BIGINT, length INT)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
+LOCATION 's3://starcompanybucket/Ram/ad_analysis/week=1';
+
+
+CREATE EXTERNAL TABLE `enriched_viewership_week_1`( 
+  `channel` string,
+  `pgm_date` BIGINT,
+  `barc_desc` string,
+  `pgm_start` BIGINT, 
+  `advertising_id` string,
+  `ad_desc` string,
+  `ad_start` BIGINT,
+  `ad_end` BIGINT,
+  `length` int)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
+LOCATION
+  's3a://starcompanybucket/Ram/ad_analysis/week=1'
+tblproperties ("skip.header.line.count"="1");
+
+CREATE EXTERNAL TABLE `raw_actives_deviceInfo`(`advertising_id` string COMMENT 'from deserializer',`device` string COMMENT 'from deserializer',`class` string COMMENT 'from deserializer') ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.OpenCSVSerde' WITH SERDEPROPERTIES ('escapeChar'='\\','quoteChar'='\"','separatorChar'=',') STORED AS INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat' LOCATION 's3a://starcompanybucket/hari/raw-actives-deviceInfo/'
+------------------------------------------------------------------------------
+CREATE EXTERNAL TABLE `PP_orc_v1`(
+  `state` string, 
+  `location_class` string, 
+  `channel_name` string, 
+  `show_name` string,
+  `prg_start_time` timestamp,
+  `prg_end_time` timestamp,
+  `duration` int,
+  `raw_reach` bigint,
+  `raw_watchtime` bigint,
+  `unique_ids` bigint,
+  `universe` bigint,
+  `reach` decimal(30,6),
+  `reach_perc` decimal(30,6),
+  `watchtime` decimal(30,6),
+  `GVT` decimal(30,6),
+  `TVT` decimal(30,6),
+  `TSV` decimal(30,6),
+  `TVR` decimal(30,6),
+  `GRP` decimal(30,6),
+  `date` timestamp)
+COMMENT 'Zapr pp table with partition in S3'
+PARTITIONED BY ( 
+  `year` string, 
+  `week` string)
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.ql.io.orc.OrcSerde' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.orc.OrcInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat'
+LOCATION
+  's3a://star-dl-zapr/transformed/PP_v1'
+
+nohup spark-submit --packages com.databricks:spark-csv_2.11:1.2.0 --class zaprPP_summary_v1 --master yarn --queue jobs --num-executors 10 --executor-cores 2 --executor-memory 4g --driver-memory 2g /home/ec2-user/hari/jars/zapractivestoorc_2.10-1.0.jar 2018-01-13 0 > /home/ec2-user/hari/zapr/sessionization/log_PPAggregation_2018-01-13.log 2>&1 &
+
+---toPP_V1
+nohup spark-submit --packages com.databricks:spark-csv_2.11:1.2.0 --class zaprPP_summary_v1 --master yarn --queue jobs --num-executors 10 --executor-cores 2 --executor-memory 4g --driver-memory 2g --deploy-mode cluster --jars /usr/hdp/current/spark-client/lib/datanucleus-api-jdo-3.2.6.jar,/usr/hdp/current/spark-client/lib/datanucleus-core-3.2.10.jar,/usr/hdp/current/spark-client/lib/datanucleus-rdbms-3.2.9.jar,/usr/hdp/current/spark-client/lib/postgresql-42.1.4.jar --files /usr/hdp/current/spark-client/conf/hive-site.xml /home/ec2-user/hari/jars/zapractivestoorc_2.10-1.0.jar 2018-06-30 17 > /home/ec2-user/hari/zapr/sessionization/log_PPAggregation_2018-06-30.log 2>&1 &
+
+nohup spark-submit --packages com.databricks:spark-csv_2.11:1.2.0 --class zaprPP_summary_v1 --master yarn --queue jobs --num-executors 10 --executor-cores 2 --executor-memory 4g --driver-memory 2g --deploy-mode cluster --jars /usr/hdp/current/spark-client/lib/datanucleus-api-jdo-3.2.6.jar,/usr/hdp/current/spark-client/lib/datanucleus-core-3.2.10.jar,/usr/hdp/current/spark-client/lib/datanucleus-rdbms-3.2.9.jar,/usr/hdp/current/spark-client/lib/postgresql-42.1.4.jar --files /usr/hdp/current/spark-client/conf/hive-site.xml /home/ec2-user/hari/jars/zapractivestoorc_2.10-1.0.jar 2018-07-18 2 > /home/ec2-user/hari/zapr/sessionization/log_PPAggregation_2018-07-18.log 2>&1 &
+
+nohup spark-submit --packages com.databricks:spark-csv_2.11:1.2.0 --class zaprPP_summary_v1 --master yarn --queue jobs --num-executors 10 --executor-cores 2 --executor-memory 4g --driver-memory 2g /home/ec2-user/hari/jars/zapractivestoorc_2.10-1.0.jar 2018-07-21 0 > /home/ec2-user/hari/zapr/sessionization/log_PPAggregation_2018-07-21.log 2>&1 &
+
+correct data = 2018-08-12
+
+
+
+0062342c-6db7-4091-bf52-10a951655226 -- advertising_id with not nulls of llduration of week 19 and year 2018
+
+
+
+sessionization output
++--------------+-------+
+|location_class|    _c1|
++--------------+-------+
+|         Metro|6009359|
+|            1L|1109177|
+|            1M|2876693|
+|         rural|3683168|
++--------------+-------+
+
+pp output
+159932	1L
+396542	1M
+837431	Metro
+487970	rural
+
+
+
+
+
+
+after date formation in seconds
++-------------+--------------+
+|raw_watchtime|location_class|
++-------------+--------------+
+|    851188040|         Metro|	
+|    650093870|            1L|
+|    690775325|            1M|
+|   1733019372|         rural|
+|     40471237|          null|
++-------------+--------------+
+
+
+14186467.3333
+
+ERROR LiveListenerBus: SparkListenerBus has already stopped! Dropping event SparkListenerExecutorMetricsUpdate(2,WrappedArray())
+
+Maharashtra	U+R	26	2018	STAR_PLUS	YEH_RISHTA_KYA_KEHLATA_HAI	6/23/18 8:30	6/23/18 9:00	29	689	0	346454.2401	0.377143	118750.2624	0.129269	40.757744	117826.6493	0.128264	91862834	9.94000711
+
+
+Mah / Goa	U+R	STAR PLUS	YEH_RISHTA_KYA_KEHLATA_HAI	2018-06-23 08:30:29	2018-06-23 09:00:15	185105	721	7386	29	95183943	368367.468588	0.387006	3794636.335988	126487.877866	127479.384188	10.301225	0.13393	826.367371	2018-06-23 00:00:00	2018	26
+
+
+ sqlContext.sql("select * from zapr.pp_orc where year = '2018' and week = '26' and `date` = '2018-06-23' and state = 'Mah / Goa' and upper(channel_name) = 'STAR PLUS' and location_class = 'U+R'").show(10,false)
+
+ sqlContext.sql("select * from zapr.pp_orc where year = '2018' and week = '26' and `date` = '2018-06-23' and state = 'Mah / Goa' and upper(channel_name) = 'STAR PLUS' and prg_start_time = '2018-06-23 08:30:29'").show(10,false)
+
+
+
+-----------------------------
+val df = sqlContext.sql("select * from zapr.pp_orc where year = '2018' and week = '26' and state = 'Mah / Goa' and upper(channel_name) = 'STAR PLUS' and location_class in ('U+R','U')")
+
+ df.coalesce(1).write.format("com.databricks.spark.csv").option("header", "true").save("s3a://starcompanybucket/hari/pp/")
+
+------------------------------
+nohup spark-submit --class zapr_raw_actives_to_actives --master yarn --queue jobs --num-executors 16 --executor-memory 3g --executor-cores 2  /home/ec2-user/ram/jar/starzapr_2.10-0.1.jar 2017-10-14 0 > /home/ec2-user/ram/Actives_2017-10-14.log 2>&1 & -- error
+
+nohup spark-submit --class zapr_raw_actives_to_actives --master yarn --queue jobs --num-executors 16 --executor-memory 3g --executor-cores 2  /home/ec2-user/ram/jar/starzapr_2.10-0.1.jar 2017-10-07 0 > /home/ec2-user/ram/Actives_2017-10-07.log 2>&1 & -- error
+
+nohup spark-submit --class zapr_raw_actives_to_actives --master yarn --queue jobs --num-executors 16 --executor-memory 3g --executor-cores 2  /home/ec2-user/ram/jar/starzapr_2.10-0.1.jar 2017-09-30 0 > /home/ec2-user/ram/Actives_2017-09-30.log 2>&1 &
+-------------------------------------------------
+
+CREATE EXTERNAL TABLE `30mins_v1_orc`(
+  `state` string, 
+  `location_class` string, 
+  `channel_name` string, 
+  `timeband` string, 
+  `universe` bigint, 
+  `active_pop` bigint, 
+  `raw_reach` bigint, 
+  `reach` decimal(30,6), 
+  `reach_perc` decimal(30,6), 
+  `raw_watchtime` decimal(30,6), 
+  `watchtime` decimal(30,6), 
+  `impressions` decimal(30,6), 
+  `tsv` decimal(30,6), 
+  `tvr` decimal(30,6), 
+  `dt` string)
+COMMENT 'Zapr 30min table with partition in S3'
+PARTITIONED BY ( 
+  `year` string, 
+  `week` string)
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.ql.io.orc.OrcSerde' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.orc.OrcInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat'
+LOCATION
+  's3a://star-dl-zapr/transformed/30mins_v1'
+ nohup spark-submit --num-executors 10 --executor-cores 2 --executor-memory 6g --class zapr_30mins_v5  --master yarn --deploy-mode cluster --jars /usr/hdp/current/spark-client/lib/datanucleus-api-jdo-3.2.6.jar,/usr/hdp/current/spark-client/lib/datanucleus-core-3.2.10.jar,/usr/hdp/current/spark-client/lib/datanucleus-rdbms-3.2.9.jar,/usr/hdp/current/spark-client/lib/postgresql-42.1.4.jar --files /usr/hdp/current/spark-client/conf/hive-site.xml /home/ec2-user/hari/jars/zapractivestoorc_2.10-1.0_30min1.jar  2018-10-20 6 > /home/ec2-user/ram/30Min_v4_2018-10-20.log 2>&1 &
+
+nohup spark-submit --num-executors 10 --executor-cores 2 --executor-memory 6g --class zapr_30mins_v5  --master yarn /home/ec2-user/hari/jars/zapractivestoorc_2.10-1.0_30min1.jar  2018-03-02 4 > /home/ec2-user/ram/30Min_v4_2018-03-02.log 2>&1 &
+
+
+
+
+
+HSM|         Metro|    640034| 219485655|
+|      HSM|            1L|    655696| 548201850|
+|      HSM|            1M|    755275| 196418658|
+|      HSM|         rural|   2180943|1133113475|
+
+
+
+
+ South|         Metro|     97723| 27494148|
+|    South|            1L|     57518| 72841170|
+|    South|            1M|     17759|  8988822|
+|    South|         rural|    165703|132986845|
+
+
+ India|         Metro| 737757| 246979803|
+|    India|            1L| 713214| 621043020|
+|    India|            1M| 773034| 205407480|
+|    India|         rural|2346646|1266100320|
+
+
+CREATE EXTERNAL TABLE `weekly_orc_v1`(
+  `state` string, 
+  `location_class` string, 
+  `channel_name` string, 
+  `universe` bigint, 
+  `active_pop` bigint, 
+  `creach` bigint, 
+  `grossimpressions` decimal(30,6), 
+  `grossimpressions_anytv` decimal(30,6), 
+  `reach_perc` decimal(30,6), 
+  `grp` decimal(30,6), 
+  `share` decimal(30,6), 
+  `tsv` decimal(30,6))
+COMMENT 'Zapr weekly summary table with partition in S3'
+PARTITIONED BY ( 
+  `year` string, 
+  `week` string)
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.ql.io.orc.OrcSerde' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.orc.OrcInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat'
+LOCATION
+  's3a://star-dl-zapr/transformed/weekly_v1'
+
+nohup spark-submit --num-executors 6 --executor-cores 2 --driver-memory 1g --executor-memory 4g --class zapr_weekly --queue jobs  --master yarn --deploy-mode cluster --jars /usr/hdp/current/spark-client/lib/datanucleus-api-jdo-3.2.6.jar,/usr/hdp/current/spark-client/lib/datanucleus-core-3.2.10.jar,/usr/hdp/current/spark-client/lib/datanucleus-rdbms-3.2.9.jar,/usr/hdp/current/spark-client/lib/postgresql-42.1.4.jar --files /usr/hdp/current/spark-client/conf/hive-site.xml /home/ec2-user/hari/jars/zapractivestoorc_2.10-1.0_30min1.jar 2018-09-25 0 > /home/ec2-user/ram/Zapr_Weekly_v4_2018-09-25.log 2>&1 &
+
+nohup spark-submit --num-executors 6 --executor-cores 2 --driver-memory 1g --executor-memory 4g --class zapr_weekly --queue jobs  --master yarn --deploy-mode cluster --jars /usr/hdp/current/spark-client/lib/datanucleus-api-jdo-3.2.6.jar,/usr/hdp/current/spark-client/lib/datanucleus-core-3.2.10.jar,/usr/hdp/current/spark-client/lib/datanucleus-rdbms-3.2.9.jar,/usr/hdp/current/spark-client/lib/postgresql-42.1.4.jar --files /usr/hdp/current/spark-client/conf/hive-site.xml /home/ec2-user/hari/jars/zapractivestoorc_2.10-1.0_30min1.jar 2017-12-19 0 > /home/ec2-user/ram/Zapr_Weekly_v4_2017-12-19.log 2>&1 &
+
+
+spark-submit --num-executors 6 --executor-cores 2 --driver-memory 1g --executor-memory 4g --class zapr_weekly --queue jobs  --master yarn /home/ec2-user/hari/jars/zapractivestoorc_2.10-1.0_30min1.jar $dt1 0 > /home/ec2-user/ram/Zapr_Weekly_v4_$dt1.log 2>&1
+
+
+
+
+val df = sqlContext.sql("select sum(tvr) from zapr.30mins_v1_orc where state = 'Assam / North East / Sikkim' and location_class = '1L' and channel_name != 'ANYTV' and year = '2018' and week = '3' and `dt` = '2018-01-14'");195.442520
+ val df = sqlContext.sql("select sum(tvr) from zapr.30mins_v1_orc where state = 'Assam / North East / Sikkim' and location_class = '1L' and channel_name = 'ANYTV' and year = '2018' and week = '3' and `dt` = '2018-01-14'");
+
+
+val df_India = sqlContext.sql("select 30mintime, channel_name, 'India' as barcstate, location_class, sum(raw_reach) as raw_reach, sum(raw_watchtime) as raw_watchtime, sum(reach) as reach, sum(raw_watchtime_mins) as raw_watchtime_mins, sum(watchtime) as watchtime, sum(gvt_tvt) as gvt_tvt from df_viewership_30min_all_metrics group by 30mintime, channel_name, location_class")
+      
+
+
+val df_U_R = sqlContext.sql("select 30mintime, channel_name,barcstate, 'U+R' as location_class, sum(raw_reach) as raw_reach, sum(raw_watchtime) as raw_watchtime , sum(reach) as reach, sum(raw_watchtime_mins) as raw_watchtime_mins, sum(watchtime) as watchtime, sum(gvt_tvt) as gvt_tvt from df_viewership_30min_all_metrics_AllState group by barcstate, 30mintime, channel_name")
+
+val df_U = sqlContext.sql("select 30mintime, channel_name,barcstate, 'U' as location_class, sum(raw_reach) as raw_reach, sum(raw_watchtime) as raw_watchtime, sum(reach) as reach, sum(raw_watchtime_mins) as raw_watchtime_mins, sum(watchtime) as watchtime, sum(gvt_tvt) as gvt_tvt from df_viewership_30min_all_metrics_AllState where upper(trim(location_class)) !='RURAL' group by barcstate, 30mintime, channel_name")
+
+
+val df = sqlContext.sql("select distinct active_pop from zapr.30mins_v1_orc where state = 'Assam / North East / Sikkim' and location_class = 'U+R' and year = '2018' and week = '3' and `dt` = '2018-01-14'")
+
+
+val df = sqlContext.sql("select distinct active_pop from zapr.30mins_v1_orc where state = 'HSM' and location_class = 'U+R' and year = '2018' and week = '3' and `dt` = '2018-01-14'")
+
+val df = sqlContext.sql("select distinct active_pop from zapr.30mins_v1_orc where state = 'Assam / North East / Sikkim' and location_class = '1L' and year = '2018' and week = '3' and `dt` = '2018-01-14'")
+
+val df = sqlContext.sql("select distinct active_pop from zapr.30mins_v1_orc where state = 'HSM' and location_class = 'rural' and year = '2018' and week = '3' and `dt` = '2018-01-14'")
+
+
+for S3 sync::
+
+aws s3 sync . s3://starcompanybucket/Hari/test/
+
+
+aws s3 sync s3://zapr-external-data-sink/raw-actives/month=2018-10/date=2018-10-01 s3://star-dl-zapr/raw/raw-actives/month=2018-09/date=2018-09-29-temp 
+aws s3 sync s3://zapr-external-data-sink/raw-actives/month=2018-10/date=2018-10-01 /ebs_1/zaprs3/viewership_v1_Daily/channel-viewership/month=2018-10/date=2018-10-01 --profile zapr
+
+aws s3 sync s3://zapr-external-data-sink/raw-actives/month=2018-10/date=2018-10-01 /ebs_1/zaprs3/raw-actives/month=2018-10/date=2018-10-01 --profile zapr
+aws s3 sync /ebs_1/zaprs3/raw-actives/month=2018-10/date=2018-10-01/ s3://star-dl-zapr/raw/raw-actives/month=2018-10/date=2018-10-01/
+
+raw-actives
+aw
+
+val d = "2018-08-23"
+
+
+val f1 = merge.filter($"duration" > 600)
+
+ //f1.filter($"advertising_id" === "66be9cf3-6121-4a5e-99f2-54a37c9ad821").show(50,false)
+
+f1.filter($"advertising_id" === "2546f8bf-c262-4441-8eb8-744d4f155b71").show(50,false)
+
+
+PP table requirements:
+1. show name change (from underscore to space)
+2. keep zapr and barc channel name
+3. keep only 300 channel names
+
+
+val result1 = sqlContext.sql("select * from viewdf LEFT JOIN channelMapingdf on viewdf.cname = channelMapingdf.zaprChannelName")

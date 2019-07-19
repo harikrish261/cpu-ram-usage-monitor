@@ -1,0 +1,108 @@
+Recode staging server configuration::
+	PWD for PPK – Conns@2018
+ 
+	VPN Name - securevpn1.conns.com
+	VPN User Name – sareddy
+	VPN Pwd – Conns123 
+	Staging Server - 172.16.100.170 & 172.16.100.25
+	
+	
+NIFI::
+ http://172.16.100.170:9090/nifi/   
+	
+	
+Git::
+git clone https://git-codecommit.us-east-1.amazonaws.com/v1/repos/ShawHDP
+	
+Ambari details::
+	  http://172.16.100.25:8080/   
+	  sareddy/sareddy@123
+
+	
+hadoop commands :
+ hdfs dfs -mkdir /user/sareddy/current_bank_branch_lookup_latest                                                                    
+ hdfs dfs -put /opt/shaw/SimpleInterest/current_bank_branch_lookup.csv /user/sareddy/current_bank_branch_lookup_latest/ 
+ 
+ hadoop fs -cat /data/publish/customer_finance_dm/files/loan_mapping/date=2019-05-02/loan.loan | grep "5898254770
+ 
+ file copying to server
+  hadoop fs -cat /data/publish/customer_finance_dm/files/loan_mapping/date=2019-05-14/* | head -2000 > /opt/shaw/SimpleInterest/data_files/si_0514.loan
+  
+  hadoop fs -cat /data/publish/customer_finance_dm/files/loan_mapping/date=2019-05-14/* | head -1000 | grep "PAYSCHED" > /opt/shaw/SimpleInterest/data_files/si_paysched_0514.loan
+
+  
+ copying si file to hadoop
+  hadoop fs -put -f /opt/shaw/SimpleInterest/si.csv /data/transformation/customer_finance_dm/files/loan_mapping/si.csv
+  
+  
+  for testing purpose::
+  spark-shell --packages com.databricks:spark-csv_2.10:1.4.0
+df.withColumn("NumberColumn", format_number($"NumberColumn", 5))
+  hadoop fs -put -f /opt/shaw/SimpleInterest/C2ImportStaffSample.csv  /data/transformation/customer_finance_dm/files/test/C2ImportStaffSample.csv
+
+
+Database details : 
+
+
+	DB: customer_finance_transformation
+	Tables:
+	shaw_monetary
+	shaw_simple_interest
+	fiserv_cf_customer_snapshot
+	fiserv_pr_customer_snapshot
+	
+Queries::
+select count(distinct concat(customer_nbr_cust_reference,customer_nbr_account_extension)) from customer_finance_transformation.shaw_customer_conversion;
+
+ 
+select count(distinct concat(a.nbr_cust_reference,a.nbr_account_extension)) from shaw_converted_accounts_ccapsel_nifi a JOIN shaw_converted_customer_dsabsel_nifi b ON a.customer_id=b.customer_id	
+
+	
+query when count doesn't match
+ select concat(b.nbr_cust_reference,b.nbr_account_extension) as accountNumber from customer_finance_transformation.shaw_customer_conversion right outer join shaw_converted_accounts_ccapsel_nifi b on (concat(customer_nbr_cust_reference,customer_nbr_account_extension)=concat(b.nbr_cust_reference,b.nbr_account_extension)) where concat(customer_nbr_cust_reference,customer_nbr_account_extension) is null limit 10;
+Query ID = sareddy_20190415031834_ef3e5de4-8f03-4a91-81a1-ad68eae58ebe
+	
+	
+Hadoop path::
+fixed width file ==>> hadoop fs -cat /data/publish/customer_finance_dm/files/loan_mapping/date=2019-04-03/* | grep -n "530312070"
+hadoop fs -cat /data/publish/customer_finance_dm/files/loan_mapping/date=2019-05-27/* | grep -n "addins"
+	
+spark submit commands:
+
+/opt/shaw
+
+/opt/shaw/CustomerConversion
+
+/opt/shaw/SimpleInterest
+
+/opt/shaw/Monetary
+
+ 
+
+spark-submit --packages com.databricks:spark-csv_2.10:1.5.0 --class mainlayer.StartSparkMain --num-executors 4 --executor-cores 2 --executor-memory 2G --driver-memory 2G --master yarn-client /opt/shaw/CustomerConversion/code/ShawCustomerConversion-1.0-SNAPSHOT.jar
+
+ 
+//old path
+//spark-submit --packages com.databricks:spark-csv_2.10:1.5.0 --class mainlayer.StartSparkMain --num-executors 6 --executor-cores 4 --executor-memory 8G --driver-memory 2G --master yarn-client /opt/shaw/SimpleInterest/ShawSimpleInterestLoanData-1.0-SNAPSHOT.jar
+
+spark-submit --packages com.databricks:spark-csv_2.10:1.5.0 --class mainlayer.StartSparkMain --num-executors 4 --executor-cores 2 --executor-memory 4G --driver-memory 2G --master yarn-client /opt/shaw/SimpleInterest/code/ShawSimpleInterestLoanData-1.0-SNAPSHOT.jar
+
+//Loanpay mapping File generation 
+spark-submit --packages com.databricks:spark-csv_2.10:1.5.0 --class mainlayer.StartSparkMain --num-executors 1 --master yarn-client /opt/shaw/SimpleInterest/out/ShawDataIngest_SI-1.0-SNAPSHOT.jar loanpay customer_finance_transformation shaw_simple_interest spf yes
+
+spark-submit --packages com.databricks:spark-csv_2.10:1.5.0 --class mainlayer.StartSparkMain --num-executors 6 --executor-cores 4 --executor-memory 8G --driver-memory 2G --master yarn-client /opt/shaw/Monetary/ShawMonetaryData-1.0-SNAPSHOT.jar
+
+ 
+
+spark-submit --packages com.databricks:spark-csv_2.10:1.5.0 --class mainlayer.StartSparkMain --num-executors 6 --executor-cores 4 --executor-memory 8G --driver-memory 2G --master yarn-client /opt/shaw/DataIngest/ShawDataIngest-1.0-SNAPSHOT.jar PAYMENT customer_finance_transformation shaw_monetary spf yes
+
+ 
+
+spark-submit --packages com.databricks:spark-csv_2.10:1.5.0 --class mainlayer.StartSparkMain --num-executors 6 --executor-cores 4 --executor-memory 8G --driver-memory 2G --master yarn-client /opt/shaw/SimpleInterest/out2/ShawDataIngest-1.0-SNAPSHOT.jar LOAN customer_finance_transformation shaw_simple_interest loan yes
+
+Fiserv Compaction:
+spark-submit --packages com.databricks:spark-csv_2.10:1.5.0 --class mainlayer.StartSparkMain --num-executors 4 --executor-cores 2 --executor-memory 2G --driver-memory 2G --master yarn-client /opt/shaw/FiservCompaction/FiservCompaction-1.0-SNAPSHOT.jar
+
+
+
+spark-submit --packages com.databricks:spark-csv_2.10:1.5.0 --class mainlayer.StartSparkMain --num-executors 1 --master yarn-client /opt/shaw/LoanPay/ShawDataIngest-1.0-SNAPSHOT.jar LOANPAY customer_finance_transformation shaw_simple_interest spf yes
