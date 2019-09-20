@@ -1,0 +1,134 @@
+import numpy as np
+import pandas as pd
+import os
+
+#from ace import acespark
+#acespark.import_spark()
+from pyspark.sql.types import *
+from pyspark.sql import SparkSession
+from sqlalchemy import types, create_engine
+
+spark = (SparkSession.builder.enableHiveSupport().getOrCreate())
+sc = spark.sparkContext
+sqlContext = spark
+
+from pyspark.sql import types as DT
+from pyspark.sql.functions import datediff
+from pyspark.sql import functions as F
+from pyspark.sql.functions import date_format
+
+from pyspark import SQLContext
+sqlC = SQLContext(sc)
+from pyspark.sql import Row
+import pyspark.sql.types as pst
+import pyspark.sql.functions as psf
+sqlContext.sql("set hive.fetch.task.conversion=none")
+sqlContext.sql("set hive.execution.engine=mr")
+
+
+os.environ['PYSPARK_PYTHON'] = 'python'
+os.environ['PYSPARK_DRIVER_PYTHON'] = 'python'
+db_CLDW = 'CLDW_IMDSCVP'
+engine_CLDW = create_engine('oracle+cx_oracle://@%s' % (db_CLDW)) 
+sql = "select * from cldw_shr.acp19_pricing_scored where TO_CHAR(TERM_EFF_DT,'YYYY') = '2018'" 
+acpData = pd.read_sql(sql,con = engine_CLDW)
+
+acpData['term_end_dt'] = (acpData['term_eff_dt'] + pd.to_timedelta(1, unit="Y")).dt.strftime("%Y-%m-%d")
+acpData['term_eff_dt'] = (acpData['term_eff_dt']).dt.strftime("%Y-%m-%d")
+
+acpData1 = sqlC.createDataFrame(acpData)
+acpData1 =  acpData1.withColumn("term_end_dt", acpData1["term_end_dt"].cast(DT.DateType()))
+acpData1 =  acpData1.withColumn("term_eff_dt", acpData1["term_eff_dt"].cast(DT.DateType()))
+acpData2 = acpData1.repartition(100)
+acpData2.registerTempTable('acpData2')
+acpData2.columns[0] = "afmt_gid_acp"
+acpData3 = acpData2.withColumnRenamed('agmt_gid','agmt_gid_acp')
+
+def preparePolID(s):
+    return s[0:4]+' '+s[5:11]
+	
+from pyspark.sql.functions import udf
+polId_udf = udf(preparePolID)
+df = sqlContext.sql('select * from lake_cl_ops_mart.ja_policy_events_fw')
+df = df.withColumn('pol_id', polId_udf(df['pol_id']))
+df_final = df.join(acpData3, "pol_id")
+df_final1 = df_final.filter((df_final['date_time'] < df_final['term_end_dt']) & (df_final['date_time'] >= df_final['term_eff_dt']))
+df_final1.registerTempTable("df_final1")
+
+def dayParts(dt):
+    hour = int(str(dt).split(" ")[1].split(":")[0])
+    #print (hour)
+    if(6<=hour<10):
+        return "Morning"
+    elif  (10<=hour<17):
+        return "Daytime"
+    elif  (17<=hour<23):
+        return "Primetime"
+    elif  (23<=hour<24 or 0<=hour<2):
+        return "Latenight"
+    else:
+        return "Overnight"
+dayparts_udf = udf(dayParts)
+
+def policyPeriods(days):
+    days = int(days)
+    if(days <= 90):
+        return "Startperiod"
+    elif  (days >= 275):
+        return "Endperiod"
+policyPeriods_udf = udf(policyPeriods)
+
+df_final1 = df_final1.withColumn("Day_Partition", dayparts_udf(df_final1["date_time"]))
+df_final1 = df_final1.withColumn("channel_1", F.when (df_final1["channel"] == "eMail", "Email").otherwise(df_final1["channel"]))
+df_final1 = df_final1.withColumn("Day_Diff", datediff(df_final1["date_time"],df_final1["term_eff_dt"]))
+df_final1 = df_final1.withColumn("Duration_Partition", policyPeriods_udf(df_final1["Day_Diff"]))
+df_final1 = df_final1.withColumn("Weekday",  date_format(df_final1["date_time"], 'E'))
+df_final1.registerTempTable("df_final1")
+ParentDf = sqlContext.sql("select pol_id, term_eff_dt, count(channel_1) as NO_OF_CNTS from df_final1 group by pol_id, term_eff_dt ")
+
+def getIndividualCounts(cloName,channelList,baseDf):
+    for cl in channelList:
+        #print( cl )
+        sqll = "select pol_id, term_eff_dt, count("+cloName+") as NO_OF_"+cl+"_CNTS from df_final1 where "+cloName+" = '"+cl+"' group by pol_id, term_eff_dt"
+        #print (sqll)
+        cl_Df = sqlContext.sql(sqll)
+        baseDf = baseDf.join(cl_Df, ["pol_id","term_eff_dt"], "left_outer")
+    return baseDf
+	
+df_final1.registerTempTable("df_final1")
+
+channelList = ["Phone","Email","Fax","SMS","Mail","Handler","System","Web"]
+channelDf = getIndividualCounts("channel_1", channelList, ParentDf)
+
+dayPartList = ["Morning","Daytime","Primetime","Latenight","Overnight"]
+stage2Df = getIndividualCounts("Day_Partition",dayPartList,channelDf)
+
+durationList = ["Startperiod","Endperiod"]
+stage2Df = getIndividualCounts("Duration_Partition",durationList,stage2Df)
+#df_final1.show()
+
+weekdayList = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
+stage2Df = getIndividualCounts("Weekday",weekdayList,stage2Df)
+
+stage2Df.registerTempTable("stage2Df")
+stage2Df = stage2Df.withColumn("NO_OF_WEEKDAY_CNTS", (stage2Df["NO_OF_Mon_CNTS"] + stage2Df["NO_OF_Tue_CNTS"] + stage2Df["NO_OF_Wed_CNTS"] + stage2Df["NO_OF_Thu_CNTS"] + stage2Df["NO_OF_Fri_CNTS"] )).withColumn("NO_OF_WEEKENDDAY_CNTS",(stage2Df["NO_OF_Sat_CNTS"] + stage2Df["NO_OF_Sun_CNTS"] ))
+stage2Df.registerTempTable("stage2Df")
+stage2Df.createOrReplaceTempView("mytempTable")
+sqlContext.sql("create table ht48670.journeyAnalyticsTable_intermediate as select * from mytempTable");
+
+df_inter = sqlContext.sql('select * from ht48670.journeyanalyticstable_intermediate2018')
+df_inter.registerTempTable("df_inter")
+mapper = {'Pay my Bill':'pay','Renewal Support':'renewal','Renewal Statement':'renewal','Fee / Tax':'bill','Billing Statement':'bill','Endorsement':'endorsement','Cancellation':'cancel','Change coverage':'endorsement','Service':'service','Email Event':'email_tp','Get Quote':'quote','Service Call':'service','null':'unknown','Evidence of Coverage':'evidence','Delay Renewal':'renewal','UW Call':'service','Billing Call':'bill','Purchase Policy':'quote','Service Survey':'service','Inbound eMail':'email_tp','Disbursement':'bill','Release Renewal Hold':'renewal','Non Renew':'nonrenewal','Do Not Renew':'nonrenewal','Fee / Tax Reversal':'bill','Post Issuance - Admin Work':'quote','Missing Info':'unknown','Coverage Checkup':'service','Update Contact Info':'service','General Notice':'service','Cancellation Request':'cancel','Issue Policy':'quote','Playbook':'other','Renewal':'renewal','Payment Confirmation':'pay','Reinstatement':'other','Cancellation Notice':'cancel','Welcome':'other','Register for My Account':'other','Audit Method Assigned':'audit','Welcome Survey':'other','Renwal Retention call':'renewal','Collection':'bill','Audit Complete':'audit','Broker of Record':'other','Audit Statement':'audit','Audit Complete - prem adj':'audit','Post Issuance - Loss Control':'other','Audit Work Complete':'audit','Audit Servicing':'audit','Audit Due date':'audit','Field Audit Travel':'audit','Audit Notice':'audit','OBSC Policy Updates':'other','Reprice Request':'other','eConsent':'other','Loss Payment':'other','Disbute Bill':'bill','Audit Scheduled':'audit','Pre Issuance - Prep Work':'quote','Reset Password':'other','Billing':'bill','Filings':'other','Audit Survey':'audit','Form Request':'other','Audit Call':'audit','Expensed':'other','Payment Correciton':'bill','E-mail Survey Delivered':'email_tp','Reinstatements Call':'other','Establish Bill Plan':'bill','Report a Claim':'other','VIP Service':'other','Quote Survey':'other','New Business':'other','Post Issuance - Vendor Support':'other','External Billing Services':'other','Audit Uploaded':'other','OBSC CAT Notice':'other','Directory Call':'other','Post Issuance - Premium Finance':'other','Refer to UW':'other','Settle Claim':'other','Post Issuance - General Admin':'other','Claim Servicing':'other','Charge Off':'other','Survey Alert':'other','Billing Adjustment':'other','Spanish Speaker Call':'other','Missing Information':'other','Web Inquiry Call':'other','Enroll in XactPay':'other','Renewal Conversion':'other','Change my Billing':'other','Error':'other','Technology UW':'other','Reconciliation':'other','Account unlock':'other','Applications':'other','Experience Mod':'other','Coding':'other','Invite to login':'other','Collection Reversal':'other','AMP Call':'other','Process':'other','Undefined Call':'other','CRIT':'other','UWA Quality Survey':'other','Audit Documents Received':'other','Quote':'other','SMS Event':'other','Cancellation awaiting Audit':'other','Payment Reversal':'other','Growing Spectrum':'other','Risk Engineering':'other','Undefined':'other','Evaluate':'other','Alert':'other','Communication':'other','Commission':'other','Agency Appointments':'other'}
+mapper = pd.DataFrame.from_dict(mapper, orient="index").reset_index()
+mapper.columns = ["touch_point", "touch_point_status"]
+mapper = sqlC.createDataFrame(mapper)
+
+df_final1 = df_final1.join(mapper, "touch_point", "left")
+df_final1 = df_final1.fillna("unknown", subset=['touch_point'])
+df_final1.registerTempTable("df_final1")
+
+touchPointStatusList = ["audit","bill","cancel","email_tp","endorsement","evidence","nonrenewal","other","pay","quote","renewal","service","unknown"]
+stage3Df = getIndividualCounts("touch_point_status",touchPointStatusList,df_inter)
+
+stage3Df.createOrReplaceTempView("mytempTable") 
+sqlContext.sql("create table ht48670.journeyAnalyticsTable as select * from mytempTable");
