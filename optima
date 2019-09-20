@@ -1,0 +1,712 @@
+# coding: utf-8
+import sys
+import os
+import re
+import warnings
+import unicodedata
+import extract_msg
+import pandas as pd
+import numpy as np
+import multiprocessing as mp
+from functools import partial
+from fuzzywuzzy import fuzz
+from sqlalchemy import types, create_engine
+import cx_Oracle
+import shutil
+#from config import params
+
+params = {'un':'HT48670', # Oracle DB Username
+ 'pw':'Tiger!23456', # Oracle DB Password
+ 'path':'/data/lake/clds/national_accounts/data_files/nb_loss_history/inputs/', # Script location
+ 'input_dir':'/data/lake/clds/national_accounts/data_files/nb_loss_history/inputs/MSGFiles', # Message files input location, user should have write access to this folder
+ 'cpu_count': 4 # No of CPUs for multiprocessing
+}
+
+def unicode_normalize(s):
+    """This function is to normalize unicodes in the notes. e.g: â to a.
+    input: string
+    output: upper case normalized string
+    """
+    nkfd_form = unicodedata.normalize('NFKD', str(s))
+    s = u"".join(
+        [c for c in nkfd_form if not unicodedata.combining(c)])
+    # s = s.upper()
+    s = s.replace("€", "")
+    s = s.replace("“", "")
+    s = s.replace("\u2013", "-")
+    s = s.replace("\u2014", "-")
+    s = s.encode('ascii','ignore').decode('ascii')
+    return s
+
+def clean_claim_name(s):
+	s = str(s)
+	s = s.upper()
+	s = unicode_normalize(s).upper()
+	s = re.sub(' +', ' ', s)
+	s = re.sub(r"^\s", "", s)
+	s = re.sub(' +', ' ', s)
+	s = re.sub(r"^\s", "", s)
+	s = re.sub(' +', ' ', s)
+	s = re.sub('^ ', '', s)
+	s = re.sub(' $', '', s)
+
+	pattern = re.compile(r'\W+')
+	s = pattern.split(s)
+	s = sorted(s)
+	s = " ".join(s)
+	s = re.sub('^ ', '', s)
+	s = re.sub(' $', '', s)
+	s = re.sub('None', '', s, flags=re.I)
+	s = re.sub('nan', '', s, flags=re.I)
+	try:
+		if len(s) > 0:
+			return s
+	except:
+		pass
+	
+def clean_account_name(s):
+	'''This function is to clean the account names either from subject or from the Crystal's report
+	s: string'''
+	s = str(s)
+	s = s.upper()
+	s = unicode_normalize(s).upper()
+	s = s.replace("FW: ", "")
+	s = s.replace("RE: ", "")
+	s = re.sub(' +', ' ', s)
+	s = re.sub(r"^\s", "", s)
+	s = re.sub("^NATIONAL", "",s) # Known issue if entity name has National
+	s = re.sub(' +', ' ', s)
+	s = re.sub(r"^\s", "", s)
+	s = re.sub("^ACCOUNTS", "",s)	# Known issue if entity name has Account
+	s = re.sub("^ACCOUNT", "",s)
+	s = re.sub("SUBMISSION", "",s)
+	s = re.sub("ONLY", "",s)
+	s = s.replace("LOSS", "")
+	s = re.sub(r"RUN.*", "",s)
+	s = re.sub(r"/.*", "",s)
+	s = re.sub(r"\d+/\d+/\d+", "",s) # Date
+	s = re.sub(r"\d+-\d+-\d+", "",s) # Date
+	s = re.sub(r"\d\d\d\d", "",s) # Year
+	s = re.sub(r'\bEFF\b','',s)
+	s = re.sub('C[0-9]+', '', s)
+	s = re.sub('^[\W\,\.]+', '', s)
+	s = re.sub('[\W\,\.]+$', '', s)
+	s = re.sub(' +', ' ', s)
+	s = re.sub('^ ', '', s)
+	s = re.sub(' $', '', s)
+	s = re.sub('None', '', s, flags=re.I)
+	s = re.sub('nan', '', s, flags=re.I)
+	try:
+		if len(s) > 0:
+			return s
+	except:
+		pass
+	
+def clean_account_name_for_matching(s):
+	s = str(clean_account_name(s))
+	s = re.sub(' - $', '', re.sub('^.*?(?=\ - )', '', s[::-1])[::-1])
+	s = re.sub('\([^()]*\)', '', s)
+	s = re.sub(r'[^\w\s]','', s)
+	s = re.sub(' +',' ', s)
+	s = re.sub(r'\bINC\b','',s)
+	s = re.sub(r'\bLLC\b','',s)
+	s = re.sub(r'\bLLP\b','',s)
+	s = re.sub(r'\bCTR\b','',s)
+	s = re.sub(r'\bCNTR\b','',s)
+	s = re.sub(r'\bLTD\b','',s)
+	s = re.sub(r'\bJS\b','',s)
+	s = re.sub(r'\bLP\b','',s)
+	s = re.sub(r'\bSC\b','',s)
+	s = re.sub(r'\bCO\b','',s)
+	s = re.sub(r'\bCORP\b','',s)
+	s = re.sub(r'\bCORPORATION\b','',s)
+	s = re.sub(r'\bCOMPANY\b','',s)
+	s = re.sub(r"\bCNTR'S\b",'',s)
+	s = re.sub(r'\bCNTRS\b','',s)
+	s = re.sub(r'\bHOLDINGS\b','',s)
+	s = re.sub(r'\bGROUP\b','',s)
+	s = re.sub(r'\bGROUPS\b','',s)
+	s = re.sub(r'\bSERVICE\b','',s)
+	s = re.sub(r'\bSERVICES\b','',s)
+	s = re.sub(r'\bL\b','',s)
+	s = re.sub(r'\bC\b','',s)
+	s = re.sub(r'\bINCORPORATED\b','',s)
+	s = re.sub(r'\bWC\b','',s)
+	s = re.sub(r'\bLL\b','',s)
+	s = re.sub(' +', ' ', s)
+	s = re.sub('^ ', '', s)
+	s = re.sub(' $', '', s)
+	s = re.sub('None', '', s, flags=re.I)
+	s = re.sub('nan', '', s, flags=re.I)
+	try:
+		if len(s) > 0:
+			return s
+	except:
+		pass
+	
+def get_digit(s):
+	s = re.findall('[-+]?\d*\.\d+|\d+', unicode_normalize(str(s)))
+	if len(s) > 0:
+		return s[0]
+		
+def get_date(s, d, col):
+	y = re.findall('\d{1,4}[/.-]\d+[/.-]\d{1,4}', unicode_normalize(str(s)))
+	try:
+		y = pd.to_datetime(y[0])
+		return y
+	except:
+		warnings.warn("Ignoring the improper date format %s in the column %s in the file %s"%(s,col,d))
+		
+def optima_dtypes():
+	dtypes_ = {"CLAIM_NUMBER" : types.VARCHAR(255), 
+				"PRODUCT" : types.VARCHAR(255), 
+				"ACCIDENT_DATE" : types.DATE, 
+				"CLAIM_STATUS" : types.VARCHAR(255), 
+				"WC_CLAIM_TYPE" : types.VARCHAR(1000), 
+				"CLAIMANT_NAME" : types.VARCHAR(1000), 
+				"LOCATION_NAME" : types.VARCHAR(1000), 
+				"ACCIDENT_CITY_OR_TOWN" : types.VARCHAR(255), 
+				"ACCIDENT_STATE" : types.VARCHAR(255), 
+				"TOTAL_PAID" : types.FLOAT, 
+				"TOTAL_INCURRED" : types.FLOAT, 
+				"ACCIDENT_DESCRIPTION_DETAILS" : types.VARCHAR(1000), 
+				"CLAIM_DESCRIPTION" : types.VARCHAR(1000), 
+				"NCCI_NATURE_OF_INJURY_DESCRIPT" : types.VARCHAR(1000), 
+				"NCCI_BODY_PART_DESCRIPTION" : types.VARCHAR(1000), 
+				"INJURY_SEVERITY_DESCRIPTION" : types.VARCHAR(1000), 
+				"REPORTED_DATE" : types.DATE, 
+				"LAG_TIME_DAYS" : types.INT, 
+				"EMPLOYER_REPORTED_DATE" : types.DATE, 
+				"RELEASED_TO_WORK_DATE" : types.DATE, 
+				"RETURNED_WITH_RESTRICTIONS_IND" : types.VARCHAR(255), 
+				"POLICY_NUMBER" : types.VARCHAR(255), 
+				"POLICY_EFFECTIVE_DATE" : types.DATE, 
+				"POLICY_EXPIRATION_DATE" : types.DATE, 
+				"POLICY_PERIOD" : types.INT, 
+				"MEDICAL_OR_PD_PAID" : types.FLOAT, 
+				"INDEMNITY_OR_BI_PAID" : types.FLOAT, 
+				"EXPENSE_PAID" : types.FLOAT, 
+				"MEDICAL_OR_PD_INCURRED" : types.FLOAT, 
+				"INDEMNITY_OR_BI_INCURRED" : types.FLOAT, 
+				"EXPENSE_INCURRED" : types.FLOAT, 
+				"CLAIMANT_BIRTH_DATE" : types.DATE, 
+				"CLAIMANT_HIRE_DATE" : types.DATE, 
+				"CLAIMANT_OCCUPATION" : types.VARCHAR(1000), 
+				"CLOSED_DATE" : types.DATE, 
+				"DRIVER" : types.VARCHAR(1000), 
+				"AT_TIME_AWAY_FROM_WORK" : types.INT, 
+				"NCCI_CAUSE_OF_INJURY_CODE" : types.VARCHAR(255), 
+				"NCCI_CAUSE_OF_INJURY_DESCRIPTI" : types.VARCHAR(1000), 
+				"NCCI_NATURE_OF_INJURY_CODE" : types.VARCHAR(255), 
+				"NCCI_BODY_PART_CODE" : types.VARCHAR(255), 
+				"LITIGATION_STATUS" : types.VARCHAR(255), 
+				"LOCATION_CODE" : types.VARCHAR(255), 
+				"FULL_LOCATION_CODE" : types.VARCHAR(255), 
+				"HIERARCHY_OF_LOCATION_LEVEL_2" : types.VARCHAR(255), 
+				"HIERARCHY_OF_LOCATION_LEVEL_3" : types.VARCHAR(255), 
+				"HIERARCHY_OF_LOCATION_LEVEL_4" : types.VARCHAR(255), 
+				"HIERARCHY_OF_LOCATION_LEVEL_5" : types.VARCHAR(255), 
+				"VALUATION_DATE" : types.DATE, 
+				"MEDICAL_OR_PD_RESERVE" : types.FLOAT, 
+				"INDEMNITY_OR_BI_RESERVE" : types.FLOAT, 
+				"EXPENSE_RESERVE" : types.FLOAT, 
+				"TOTAL_RESERVE" : types.FLOAT, 
+				"TOTAL_RECOVERIES" : types.FLOAT, 
+				"CARRIER" : types.VARCHAR(1000), 
+				"ENTITY" : types.VARCHAR(1000), 
+				"EMAIL_FULL_SUBJECT_LINE" : types.VARCHAR(1000),
+				"ENTITY_FROM_EMAIL_SUBJECT_LINE" : types.VARCHAR(1000),
+				"ENTITY_FOR_TEXT_MATCHING" : types.VARCHAR(1000),
+				"RECORD_INSERTION_DATE" : types.DATE
+	}
+	return dtypes_
+	
+def loss_history_dtypes():
+	dtypes_ = {"CLAIM_NUMBER" : types.VARCHAR(255), 
+				"PRODUCT" : types.VARCHAR(255), 
+				"ACCIDENT_DATE" : types.DATE, 
+				"CLAIM_STATUS" : types.VARCHAR(255), 
+				"WC_CLAIM_TYPE" : types.VARCHAR(1000), 
+				"CLAIMANT_NAME" : types.VARCHAR(1000), 
+				"LOCATION_NAME" : types.VARCHAR(1000), 
+				"ACCIDENT_CITY_OR_TOWN" : types.VARCHAR(255), 
+				"ACCIDENT_STATE" : types.VARCHAR(255), 
+				"TOTAL_PAID" : types.FLOAT, 
+				"TOTAL_INCURRED" : types.FLOAT, 
+				"ACCIDENT_DESCRIPTION_DETAILS" : types.VARCHAR(1000), 
+				"CLAIM_DESCRIPTION" : types.VARCHAR(1000), 
+				"NCCI_NATURE_OF_INJURY_DESCRIPT" : types.VARCHAR(1000), 
+				"NCCI_BODY_PART_DESCRIPTION" : types.VARCHAR(1000), 
+				"INJURY_SEVERITY_DESCRIPTION" : types.VARCHAR(1000), 
+				"REPORTED_DATE" : types.DATE, 
+				"LAG_TIME_DAYS" : types.INT, 
+				"EMPLOYER_REPORTED_DATE" : types.DATE, 
+				"RELEASED_TO_WORK_DATE" : types.DATE, 
+				"RETURNED_WITH_RESTRICTIONS_IND" : types.VARCHAR(255), 
+				"POLICY_NUMBER" : types.VARCHAR(255), 
+				"POLICY_EFFECTIVE_DATE" : types.DATE, 
+				"POLICY_EXPIRATION_DATE" : types.DATE, 
+				"POLICY_PERIOD" : types.INT, 
+				"MEDICAL_OR_PD_PAID" : types.FLOAT, 
+				"INDEMNITY_OR_BI_PAID" : types.FLOAT, 
+				"EXPENSE_PAID" : types.FLOAT, 
+				"MEDICAL_OR_PD_INCURRED" : types.FLOAT, 
+				"INDEMNITY_OR_BI_INCURRED" : types.FLOAT, 
+				"EXPENSE_INCURRED" : types.FLOAT, 
+				"CLAIMANT_BIRTH_DATE" : types.DATE, 
+				"CLAIMANT_HIRE_DATE" : types.DATE, 
+				"CLAIMANT_OCCUPATION" : types.VARCHAR(1000), 
+				"CLOSED_DATE" : types.DATE, 
+				"DRIVER" : types.VARCHAR(1000), 
+				"AT_TIME_AWAY_FROM_WORK" : types.INT, 
+				"NCCI_CAUSE_OF_INJURY_CODE" : types.VARCHAR(255), 
+				"NCCI_CAUSE_OF_INJURY_DESCRIPTI" : types.VARCHAR(1000), 
+				"NCCI_NATURE_OF_INJURY_CODE" : types.VARCHAR(255), 
+				"NCCI_BODY_PART_CODE" : types.VARCHAR(255), 
+				"LITIGATION_STATUS" : types.VARCHAR(255), 
+				"LOCATION_CODE" : types.VARCHAR(255), 
+				"FULL_LOCATION_CODE" : types.VARCHAR(255), 
+				"HIERARCHY_OF_LOCATION_LEVEL_2" : types.VARCHAR(255), 
+				"HIERARCHY_OF_LOCATION_LEVEL_3" : types.VARCHAR(255), 
+				"HIERARCHY_OF_LOCATION_LEVEL_4" : types.VARCHAR(255), 
+				"HIERARCHY_OF_LOCATION_LEVEL_5" : types.VARCHAR(255), 
+				"VALUATION_DATE" : types.DATE, 
+				"MEDICAL_OR_PD_RESERVE" : types.FLOAT, 
+				"INDEMNITY_OR_BI_RESERVE" : types.FLOAT, 
+				"EXPENSE_RESERVE" : types.FLOAT, 
+				"TOTAL_RESERVE" : types.FLOAT, 
+				"TOTAL_RECOVERIES" : types.FLOAT, 
+				"CARRIER" : types.VARCHAR(1000), 
+				"EMAIL_FULL_SUBJECT_LINE" : types.VARCHAR(1000),
+				"ENTITY_FOR_TEXT_MATCHING" : types.VARCHAR(1000),
+				"RECORD_INSERTION_DATE" : types.DATE,
+				"ACCOUNT_NAME" : types.VARCHAR(1000),
+				"NEW_RENEWAL": types.VARCHAR(1000),
+				"STATUS" :  types.VARCHAR(1000),
+				"IS_OPTIMA" : types.INT,
+				"CLM_IDNTFR" : types.VARCHAR(1000),
+				"ORGNZTN_IDNTFR" : types.VARCHAR(1000),
+				"IS_NADB" : types.INT,
+				"ENTITY_FINAL" :  types.VARCHAR(1000),
+				"OPRTNS_DSCRPTN" : types.VARCHAR(255),
+				"TERM_EFFCTV_DATE" : types.DATE,
+				"TERM_EXPRTN_DATE" : types.DATE
+	}
+	return dtypes_	
+	
+def match_account_name(s, success_an, min_score=0):
+	# -1 score incase we don't get any matches
+	s = s["ENTITY_CLEANED"]
+	max_score = -1
+	# Returning empty name for no match as well
+	max_name = ""
+	# Iterating over all names in the other
+	for a in success_an:
+		#Finding fuzzy match score
+		score = fuzz.ratio(s, a)
+		# Checking if we are above our threshold and have a better score
+		if (score > min_score) & (score > max_score):
+			max_name = a
+			max_score = score
+	return max_name, max_score 
+
+def get_success_flag(optima_an, success_an):
+	'''This function is to get the success flag for the accounts from Crystal's Report
+	optima_an: list of all account names from the optima
+	success_an: list of all account names from Crystal's report'''
+	optima_an = list(set(optima_an))
+	optima_an = {s:[clean_account_name_for_matching(s)] for s in optima_an}
+	optima_an = pd.DataFrame.from_dict(optima_an, orient="index").reset_index()
+	optima_an.columns = ["ENTITY", "ENTITY_CLEANED"]
+	success_an = [clean_account_name_for_matching(s) for s in list(set(success_an))]
+	
+	optima_an[["ENTITY_MATCHED", "MATCHED_SCORE"]] = optima_an.apply(lambda s: match_account_name(s, success_an, min_score=90), axis=1, result_type="expand")
+	optima_an.set_index("ENTITY", inplace=True)
+	return optima_an["ENTITY_MATCHED"].to_dict()
+	
+def pull_NADB_records(date1):
+	''' This function is used to pull the NADB records '''
+	query = """select distinct t2.ORGNZTN_IDNTFR,
+	t2.ORGNZTN_NAME,
+	t2.OPRTNS_DSCRPTN,
+	t1.PRDCT_SHRT_NAME,
+	t1.PLAN_EFFCTV_DATE,
+	t1.PLAN_EXPRTN_DATE,
+	t1.VLTN_DATE,
+	t1.CRRNT_CRRR_ORGNZTN_NAME,
+	t4.CLM_IDNTFR, 
+	t4.CLM_STTS_INDCTR, 
+	t4.ACCDNT_DATE, 
+	t4.ACCDNT_DSCRPTN, 
+	t6.TTL_INCRRD_AMNT,
+	t7.STT_ABBRVTN,
+	t8.CNSMR_RQST_DSCRPTN, 
+	t8.STTS_NAME, 
+	t8.TERM_EFFCTV_DATE,
+	t8.TERM_EXPRTN_DATE
+
+	from PRESALEP.BULK_CLAIM_VW  t1
+
+	inner join PSTPP.ORGNZTN t2 
+	on t1.ORGNZTN_ID = t2.ORGNZTN_ID 
+
+	inner join PRESALEP.SLCTD_DTL_CLM t4
+	on t4.BULK_CLM_ID = t1.BULK_CLM_ID
+
+	inner join PRESALEP.SLCTD_CLM_AMNT t6
+	on t6.SLCTD_DTL_CLM_ID = t4.SLCTD_DTL_CLM_ID
+
+	inner join PRESALEP.STT t7
+	on t7.STT_ID = t4.STT_ID
+
+	inner join PRESALEP.CNSMR_RQST_STTS_VW t8
+	On t1.ORGNZTN_ID = t8.CNSMR_ORGNZTN_ID And 
+	/* extract (month from (to_date(t1.PLAN_EFFCTV_DATE))) = extract (month from (to_date(t8.TERM_EFFCTV_DATE))) And */
+	to_date(t1.VLTN_DATE) < to_date(t8.TERM_EFFCTV_DATE) And
+	to_date(t1.VLTN_DATE) > add_months(to_date(t8.TERM_EFFCTV_DATE), -12)
+	/* Filter on 1-800-Pack-Rat LLC */
+	/* And t8.CNSMR_ORGNZTN_ID = 11962017826 */
+	--And to_date(t8.TERM_EFFCTV_DATE) between  '$date1$' and '$date2$'
+	And to_date(t1.VLTN_DATE) >= '$date1$'"""
+	sqlQuery = query.replace("$date1$", str(date1))
+	df = pd.read_sql(sqlQuery, engine_PSTP)
+	return df
+	
+
+	
+def pull_rmd_reccords(date1,date2):
+	''' This function is used to pull the given month of records from RMD'''
+	query = """SELECT
+         DISTINCT
+                 o.orgnztn_name
+                     AS accnt_name,
+                 cr.term_effctv_date
+                     AS effctv_date,
+				CASE WHEN cr.mdfd_date IS NULL THEN cr.add_date ELSE cr.mdfd_date END as mdfd_date,
+                 s.stts_name,
+                 crt.cnsmr_rqst_dscrptn
+                     AS cnsmr_rqst_dscrptn       
+            FROM orgnztn        o,
+                 orgnztn        po,
+                 orgnztn        ro,
+                 stts           s,
+                 cnsmr_rqst     cr,
+                 bsnss_sgmnt    bs,
+                 cnsmr_rqst_eis cre,
+                 prsn           p,
+                 cnsmr_rqst_type crt
+           WHERE     po.orgnztn_id = cr.sbmttng_prdcr_orgnztn_id
+                 AND cr.ro_orgnztn_id = ro.orgnztn_id(+)
+                 AND o.orgnztn_id = cr.cnsmr_orgnztn_id
+                 AND s.stts_id = cr.stts_id
+                 AND cr.assgnd_to_prsn_id = p.prsn_id(+)
+                 AND cr.cnsmr_rqst_type_id = crt.cnsmr_rqst_type_id
+                 --    AND s.stts_name   NOT IN  ('TEST REQUEST') --for PatM special request 4/15/05
+                 -- AND (   s.stts_name = 'SUCCESSFUL')
+                    --  OR (NVL (p_stts_slctn, 'ALL') = 'ALL'))
+                 -- AND cr.term_effctv_date between  '$date1$' and '$date1$'
+				 AND CASE WHEN cr.mdfd_date IS NULL THEN cr.add_date ELSE cr.mdfd_date END between  '$date1$' and '$date2$'
+                 AND cr.bsnss_sgmnt_id = bs.bsnss_sgmnt_id
+                 --   AND bs.bsnss_sgmnt_shrt_name    IN ('SAID','MAJAC','SRF','STAFF')
+                 -- AND (   INSTR (p_bsshrt_name, bs.bsnss_sgmnt_shrt_name) > 0
+                  --    OR NVL (p_bsshrt_name, 'ALL') = 'ALL')
+                 AND cr.cnsmr_rqst_id = cre.cnsmr_rqst_id
+                 AND cr.cnsmr_orgnztn_id <> '487020' -- remove BILLS BAR AND GRILL account
+                 AND o.orgnztn_name NOT LIKE '{DNU%'    -- remove DNU accounts
+                 AND o.orgnztn_name NOT LIKE '%{%DNU%}%'
+                 AND o.orgnztn_name NOT LIKE '%*%DNU%*%'
+                 AND o.orgnztn_name NOT LIKE '%(%DNU%)%'
+                 AND o.orgnztn_name NOT LIKE '%DNU-%'
+                 AND o.orgnztn_name NOT LIKE '%-DNU%'
+                 AND o.orgnztn_name NOT LIKE '%- DNU'
+                 AND o.orgnztn_name NOT LIKE '%DNU- %'
+        ORDER BY o.orgnztn_name, cr.term_effctv_date"""
+		
+	sqlQuery = query.replace("$date1$", str(date1)).replace("$date2$", str(date2))
+	df = pd.read_sql(sqlQuery, engine_PSTP)
+	return df
+
+def NADBLH_Schema():
+	NADBLH_Schema = pd.DataFrame(columns = ['Claim Number','Product','Accident Date','Claim Status','WC Claim Type','Claimant Name','Location Name','Accident City or Town','Accident State','Total Paid','Total Incurred','Accident Description Details','Claim Description','NCCI Nature of Injury Description','NCCI Body Part Description','Injury Severity Description','Reported Date','Lag Time Days','Employer Reported Date','Released to work date','Returned With Restrictions Indicator','Policy Number','Policy Effective Date','Policy Expiration Date','Policy Period','Medical or PD Paid','Indemnity or BI Paid','Expense Paid','Medical or PD Incurred','Indemnity or BI Incurred','Expense Incurred','Claimant Birth Date','Claimant Hire Date','Claimant Occupation','Closed Date','Driver','At Time Away from Work','NCCI Cause of Injury Code','NCCI Cause of Injury Description','NCCI Nature of Injury Code','NCCI Body Part Code','Litigation Status','Location Code','Full Location Code','Hierarchy of Location Level 2','Hierarchy of Location Level 3','Hierarchy of Location Level 4','Hierarchy of Location Level 5','Valuation Date','Medical or PD Reserve','Indemnity or BI Reserve','Expense Reserve','Total Reserve','Total Recoveries','Carrier','Entity','Email_Full_Subject_Line','Entity_From_Email_Subject_Line','Entity_For_Text_Matching','Record_Insertion_Date'])
+	return NADBLH_Schema
+		
+def extract_attachements(out_dir, msg_file):
+	'''This function will process a message file and save the valid attachments
+	to the given output directory
+	out_dir: string, path output directory
+	msg_file: string, path to the message file'''
+	# df 			= pd.read_csv("/data/lake/clds/national_accounts/dev_ap/nb_loss_history/NB_Prior_Losses/NANBLH_Schema.csv")
+	df          = NADBLH_Schema()
+	df.columns 	= [s.replace(" ","_")[:30].upper() for s in df.columns]
+	msg 		= extract_msg.Message(msg_file)
+	entity_sub 	= msg.subject.upper()
+	entity_date	= pd.to_datetime(msg.date)
+	#print("date form the email::"+entity_date) #date form the email::Wed, 05 Sep 2018 06:55:03 -0400
+	entity_sub 	= clean_account_name(entity_sub)
+	dtypes_ 	= optima_dtypes()
+	if len(msg.attachments) > 0:
+		for attachment in msg.attachments:
+			try:
+				if (".xls" in attachment.longFilename):
+					attachment.save(customPath=out_dir)
+					print("file Name::"+attachment.longFilename)
+					atch_df = pd.read_excel(out_dir + attachment.longFilename, sheet_name = "Loss History")
+					atch_df["Email_Full_Subject_Line"] = msg.subject.upper()
+					atch_df["Entity_From_Email_Subject_Line"] = entity_sub
+					atch_df["Entity_From_Email_Subject_Line"] = atch_df["Entity_From_Email_Subject_Line"].fillna(atch_df["Entity"])
+					atch_df["Entity_For_Text_Matching"] = atch_df["Entity_From_Email_Subject_Line"].apply(lambda s: clean_account_name_for_matching(s))
+					atch_df["Record_Insertion_Date"] = pd.to_datetime('today')
+					atch_df.loc[(atch_df["Valuation Date"].isnull()), "Valuation Date"] = entity_date  
+					atch_df.columns = [s.replace(" ","_")[:30].upper() for s in atch_df.columns]
+					atch_df = atch_df[df.columns]
+					for col in atch_df.columns:
+						if "VARCHAR" in str(dtypes_[col]):
+							atch_df[col] = atch_df[col].apply(lambda s: unicode_normalize(s) if not pd.isnull(s) else s)
+						elif "INT" in str(dtypes_[col]):
+							atch_df[col] = atch_df[col].apply(lambda s: get_digit(s)).astype(np.float64)
+						elif "FLOAT" in str(dtypes_[col]):
+							atch_df[col] = atch_df[col].apply(lambda s: get_digit(s)).astype(np.float64)
+						elif "DATE" in str(dtypes_[col]):
+							atch_df[col] = atch_df[col].apply(lambda s: get_date(s, attachment.longFilename, col) if not pd.isnull(s) else s)
+					df = pd.concat([df, atch_df])
+					df = df.drop_duplicates()
+			except:
+				# os.remove(out_dir + attachment.longFilename)
+				# print("Deleted: %s"%attachment.longFilename)
+ 				warnings.warn("Ignoring the attachment %s from the mail %s"%(attachment.longFilename, msg_file))
+	else:
+		warnings.warn("The mail %s has no attachments"%(msg_file))
+	return df
+
+# Join with NADB
+def merge_NADB(Optima_DEDUP, NADB):
+	'''This function is to merge Optima and NADB'''
+	Optima_DEDUP.columns = [s.replace(" ","_").upper() for s in Optima_DEDUP.columns]
+	Optima_DEDUP["ACCIDENT_DATE"] = pd.to_datetime(Optima_DEDUP["ACCIDENT_DATE"])
+	Optima_DEDUP["VALUATION_DATE"] = pd.to_datetime(Optima_DEDUP["VALUATION_DATE"])
+	Optima_DEDUP["TERM_EFFCTV_DATE"] = pd.to_datetime(Optima_DEDUP["TERM_EFFCTV_DATE"])
+	Optima_DEDUP["IS_OPTIMA"] = 1
+	#Optima_DEDUP["NEW_RENEWAL"] = Optima_DEDUP["NEW/RENEWAL"]
+	NADB.columns = [s.replace(" ","_").upper() for s in NADB.columns]
+	
+	# Filter for NEW business in the NADB query
+	NADB["POLICY_EFFECTIVE_DATE"]	=	NADB["PLAN_EFFCTV_DATE"]
+	NADB["POLICY_EXPIRATION_DATE"]	=	NADB["PLAN_EXPRTN_DATE"]
+	NADB = NADB[["ORGNZTN_IDNTFR", "ORGNZTN_NAME", "OPRTNS_DSCRPTN", "PRDCT_SHRT_NAME", "POLICY_EFFECTIVE_DATE", "POLICY_EXPIRATION_DATE", "VLTN_DATE", "CRRNT_CRRR_ORGNZTN_NAME", "CLM_IDNTFR", "CLM_STTS_INDCTR", "ACCDNT_DATE", "ACCDNT_DSCRPTN", "TTL_INCRRD_AMNT", "STT_ABBRVTN", "CNSMR_RQST_DSCRPTN", "STTS_NAME", "TERM_EFFCTV_DATE", "TERM_EXPRTN_DATE"]]
+
+	# Change the formats
+	NADB["ACCIDENT_DATE"] = NADB["ACCDNT_DATE"]
+	NADB["VALUATION_DATE"] = NADB["VLTN_DATE"]
+	NADB["ACCIDENT_DATE"] = pd.to_datetime(NADB["ACCIDENT_DATE"])
+	NADB["VALUATION_DATE"] = pd.to_datetime(NADB["VALUATION_DATE"])
+	NADB["POLICY_EFFECTIVE_DATE"] = pd.to_datetime(NADB["POLICY_EFFECTIVE_DATE"], errors='coerce')
+	NADB["TERM_EFFCTV_DATE"] = pd.to_datetime(NADB["TERM_EFFCTV_DATE"], errors='coerce')
+	NADB["IS_NADB"] = 1
+	
+	# Removing duplicates
+	NADB = NADB.sort_values(["CLM_IDNTFR", "ACCIDENT_DATE","POLICY_EFFECTIVE_DATE", "TERM_EFFCTV_DATE", "VALUATION_DATE"])
+	NADB_DEDUP = NADB.drop_duplicates(["CLM_IDNTFR", "ACCIDENT_DATE", "POLICY_EFFECTIVE_DATE", "TERM_EFFCTV_DATE"], keep="last")
+	NADB_DEDUP["POLICY_EFFECTIVE_DATE"] = pd.to_datetime(NADB_DEDUP["POLICY_EFFECTIVE_DATE"], errors='coerce')
+	NADB_DEDUP["CLM_IDNTFR_JOIN_KEY"] = NADB_DEDUP["CLM_IDNTFR"].apply(lambda s: clean_claim_name(s))
+	# Join
+	join_key = set(NADB_DEDUP.CLM_IDNTFR).intersection(set(Optima_DEDUP.CLAIM_NUMBER))
+	join_key = join_key.union(set(NADB_DEDUP.CLM_IDNTFR).intersection(set(Optima_DEDUP.loc[~(Optima_DEDUP["CLAIM_NUMBER"].isin(join_key)), "CLAIMANT_NAME"])))
+	Optima_DEDUP["CLM_IDNTFR_JOIN_KEY"] = Optima_DEDUP[["CLAIM_NUMBER", "CLAIMANT_NAME"]].apply(lambda s: s["CLAIM_NUMBER"] if s["CLAIM_NUMBER"] in join_key else s["CLAIMANT_NAME"], axis=1)
+	Optima_DEDUP["CLM_IDNTFR_JOIN_KEY"] = Optima_DEDUP["CLM_IDNTFR_JOIN_KEY"].apply(lambda s: clean_claim_name(s))
+	Optima_DEDUP["POLICY_EFFECTIVE_DATE"] = pd.to_datetime(Optima_DEDUP["POLICY_EFFECTIVE_DATE"], errors='coerce')
+	Optima_DEDUP["POLICY_EXPIRATION_DATE"] = pd.to_datetime(Optima_DEDUP["POLICY_EXPIRATION_DATE"], errors='coerce')
+	Optima_DEDUP["TERM_EFFCTV_DATE"] = pd.to_datetime(Optima_DEDUP["TERM_EFFCTV_DATE"], errors='coerce')
+	Opt_NADB_merged = pd.merge(Optima_DEDUP, NADB_DEDUP, 
+							   on=["CLM_IDNTFR_JOIN_KEY", "ACCIDENT_DATE", "TERM_EFFCTV_DATE", "VALUATION_DATE"],
+							   how="outer")
+	
+	# Derive ENTITY_FINAL from ENTITY, ENTITY_FROM_EMAIL_SUBJECT_LINE, ORGNZTN_NAME
+	# Priority: ORGNZTN_NAME,ENTITY, ENTITY_FROM_EMAIL_SUBJECT_LINE  Confirm with Anna # confirmed with Anna
+	Opt_NADB_merged["ENTITY_FINAL"] = Opt_NADB_merged["ORGNZTN_NAME"].fillna(Opt_NADB_merged["ENTITY"]).fillna(Opt_NADB_merged["ENTITY_FROM_EMAIL_SUBJECT_LINE"])
+	Opt_NADB_merged["ENTITY_FINAL"] = Opt_NADB_merged["ENTITY_FINAL"].str.upper()
+
+	# Merge Common Columns
+	Opt_NADB_merged["POLICY_EFFECTIVE_DATE"] = Opt_NADB_merged["POLICY_EFFECTIVE_DATE_x"].fillna(Opt_NADB_merged["POLICY_EFFECTIVE_DATE_y"])
+	Opt_NADB_merged["POLICY_EFFECTIVE_DATE"] = Opt_NADB_merged["POLICY_EFFECTIVE_DATE_x"].fillna(Opt_NADB_merged["POLICY_EFFECTIVE_DATE_y"])
+	Opt_NADB_merged["POLICY_EXPIRATION_DATE"] = Opt_NADB_merged["POLICY_EXPIRATION_DATE_x"].fillna(Opt_NADB_merged["POLICY_EXPIRATION_DATE_y"])
+	Opt_NADB_merged["PRODUCT"] = Opt_NADB_merged["PRODUCT"].fillna(Opt_NADB_merged["PRDCT_SHRT_NAME"])
+	Opt_NADB_merged["CARRIER"] = Opt_NADB_merged["CARRIER"].fillna(Opt_NADB_merged["CRRNT_CRRR_ORGNZTN_NAME"])
+	Opt_NADB_merged["CLAIM_STATUS"] = Opt_NADB_merged["CLAIM_STATUS"].fillna(Opt_NADB_merged["CLM_STTS_INDCTR"])
+	Opt_NADB_merged["ACCIDENT_DESCRIPTION_DETAILS"] = Opt_NADB_merged["ACCIDENT_DESCRIPTION_DETAILS"].fillna(Opt_NADB_merged["ACCDNT_DSCRPTN"])
+	Opt_NADB_merged["TOTAL_INCURRED"] = Opt_NADB_merged["TOTAL_INCURRED"].fillna(Opt_NADB_merged["TTL_INCRRD_AMNT"])
+	Opt_NADB_merged["ACCIDENT_STATE"] = Opt_NADB_merged["ACCIDENT_STATE"].fillna(Opt_NADB_merged["STT_ABBRVTN"])
+	Opt_NADB_merged["NEW_RENEWAL"] = Opt_NADB_merged["NEW_RENEWAL"].fillna(Opt_NADB_merged["CNSMR_RQST_DSCRPTN"])
+	Opt_NADB_merged["STATUS"] = Opt_NADB_merged["STATUS"].fillna(Opt_NADB_merged["STTS_NAME"])
+	Opt_NADB_merged["CLM_IDNTFR"] = Opt_NADB_merged["CLAIM_NUMBER"].fillna(Opt_NADB_merged["CLAIMANT_NAME"]).fillna(Opt_NADB_merged["CLM_IDNTFR"])
+	
+	for col in ["ACCDNT_DATE", "VLTN_DATE", "ORGNZTN_NAME", "ENTITY", "INDEX", "MDFD_DATE",
+				"ENTITY_FROM_EMAIL_SUBJECT_LINE", "PRDCT_SHRT_NAME", "CRRNT_CRRR_ORGNZTN_NAME", 
+				"CLM_STTS_INDCTR", "ACCDNT_DSCRPTN", "TTL_INCRRD_AMNT", "STT_ABBRVTN", 
+				"POLICY_EXPIRATION_DATE_x", "POLICY_EXPIRATION_DATE_y", 
+				"POLICY_EFFECTIVE_DATE_x", "POLICY_EFFECTIVE_DATE_y",
+				"STTS_NAME", "CNSMR_RQST_DSCRPTN", "CLM_IDNTFR_JOIN_KEY"]:
+		del Opt_NADB_merged[col]
+
+	lhDtypes_ = loss_history_dtypes()	
+	for col in Opt_NADB_merged.columns:
+		if "VARCHAR" in str(lhDtypes_[col]):
+			Opt_NADB_merged[col] = Opt_NADB_merged[col].apply(lambda s: unicode_normalize(s) if not pd.isnull(s) else s)
+		elif "INT" in str(lhDtypes_[col]):
+			Opt_NADB_merged[col] = Opt_NADB_merged[col].apply(lambda s: get_digit(s)).astype(np.float64)
+		elif "FLOAT" in str(lhDtypes_[col]):
+			Opt_NADB_merged[col] = Opt_NADB_merged[col].apply(lambda s: get_digit(s)).astype(np.float64)
+		elif "DATE" in str(lhDtypes_[col]):
+			Opt_NADB_merged[col] = Opt_NADB_merged[col].apply(lambda s: get_date(s, "", col) if not pd.isnull(s) else s)
+
+	return Opt_NADB_merged
+	
+# Params
+path = params["path"]
+os.chdir(path)
+p = mp.Pool(params["cpu_count"])
+#un = params["un"]
+#pw = params["pw"]
+un = "HT48670"
+pw = "Tiger!23456"
+db_CLDW = 'CLDW_IMDSCVP'
+db_PSTP	= 'PSTP_BAT_SRVC'
+
+#engine_CLDW = create_engine("oracle://%s:%s@%s" %(un, pw, db_CLDW), implicit_returning=False, encoding="UTF-8")
+#engine_PSTP = create_engine("oracle://%s:%s@%s" %(un, pw, db_PSTP), implicit_returning=False, encoding="UTF-8")
+engine_CLDW = create_engine('oracle+cx_oracle://@%s' % (db_CLDW)) 
+engine_PSTP = create_engine('oracle+cx_oracle://@%s' % (db_PSTP)) 
+
+oracle_connection_string = (
+    'oracle+cx_oracle://{username}:{password}@' +
+    cx_Oracle.makedsn('{hostname}', '{port}', service_name='{service_name}')
+)
+engine_PSTP = create_engine(
+    oracle_connection_string.format(
+        username=un,
+        password=pw,
+        hostname='xdhfd10-scan1',
+        port='1521',
+        service_name='pstp_bat_srvc.world',
+    )
+)
+
+
+in_dir =  params["input_dir"]+"/"
+if not os.path.exists(in_dir + "Attachments"):
+	os.mkdir(in_dir + "Attachments")
+out_dir = in_dir + "Attachments/"
+msg_files = [in_dir + f for f in os.listdir(in_dir) if ".msg" in f]
+extract_attachements_mp = partial(extract_attachements, out_dir)
+mul_res = [p.apply_async(extract_attachements_mp, (f,)) for f in msg_files]
+Optima = pd.concat([res.get() for res in mul_res], ignore_index=True)
+
+#fetch old records (last 12 months) and do a inner join with rmd report
+sql = "select max(Record_Insertion_Date) as Record_Insertion_Date from cldw_shr.natl_accts_loss_history_db" 
+last_insertion_date = pd.read_sql(sql,con = engine_CLDW)
+last_insertion_date = last_insertion_date.record_insertion_date.values[0]
+
+year_ahead_date = (last_insertion_date + pd.to_timedelta(12, unit="M")).strftime("%d-%b-%Y")
+year_old_date = (last_insertion_date - pd.to_timedelta(13, unit="M")).strftime("%d-%b-%Y")
+months3_ahead_date = (last_insertion_date + pd.to_timedelta(3, unit="M")).strftime("%d-%b-%Y")
+#today			= pd.to_datetime('today').strftime("%d-%b-%Y")
+last_insertion_date	= pd.to_datetime(last_insertion_date).strftime("%d-%b-%Y")
+
+#sql = "select * from cldw_shr.optima_mail_attachments where VALUATION_DATE between  '30-july-2018' AND '31-july-2019' "
+	# No need of moths3_ahead_date
+# sql = "select * from cldw_shr.optima_mail_attachments where VALUATION_DATE between '"+year_old_date+"' AND '"+months3_ahead_date+"'" 
+sql = "select * from cldw_shr.optima_mail_attachments where VALUATION_DATE >= '"+year_old_date+"' and VALUATION_DATE <= '"+months3_ahead_date+"'" 
+Optima_PrevData = pd.read_sql(sql,con = engine_CLDW)
+
+##############
+sql = "select count(*) from cldw_shr.natl_accts_loss_history_db where RECORD_INSERTION_DATE is null" 
+dump = pd.read_sql(sql,con = engine_PSTP)
+######################
+
+dtypes_ = optima_dtypes()
+Optima.to_sql(name="optima_mail_attachments", con=engine_CLDW, index=False,
+			  if_exists='append', schema='CLDW_SHR', dtype=dtypes_)
+p.close()
+
+Optima = Optima.sort_values(["ENTITY_FOR_TEXT_MATCHING", "CLAIM_NUMBER", "ACCIDENT_DATE", "VALUATION_DATE"])
+Optima["index"] = Optima.index
+
+
+# RMD
+# rmd = pd.read_excel("/data/lake/clds/national_accounts/dev_ap/nb_loss_history/NB_Prior_Losses/mapping_tables/RMD_Lead_Generation_Declination_for_Optima_2000_Aug_2019.xlsx")
+#rmd = pd.read_excel("/data/lake/clds/national_accounts/dev_ap/nb_loss_history/NB_Prior_Losses/mapping_tables/RMD_TILL_31_AUG_2019.xlsx")
+#rmd = pd.read_excel("/data/lake/clds/national_accounts/dev_ap/nb_loss_history/NB_Prior_Losses/Other/RMD_Till_31_Dec_2020.xlsx")
+rmd = pull_rmd_reccords(last_insertion_date, year_ahead_date)
+if rmd.empty:
+	warnings.warn("unable to pull RMD data from the given dates "%(last_insertion_date, year_ahead_date))
+	sys.exit("RMD data is empty for the given dates!!!")
+	
+rmd.columns = ['Account Name','TERM_EFFCTV_DATE','MDFD_DATE','Status','New/Renewal']
+rmd["ENTITY_FOR_TEXT_MATCHING"] = rmd["Account Name"].astype(str).apply(lambda s: clean_account_name_for_matching(s))
+rmd = rmd[["ENTITY_FOR_TEXT_MATCHING","Account Name", "TERM_EFFCTV_DATE", "New/Renewal", "Status", "MDFD_DATE"]]
+rmd["NEW_RENEWAL"] = rmd["New/Renewal"]
+del rmd["New/Renewal"]
+rmd["TERM_EFFCTV_DATE"] = pd.to_datetime(rmd["TERM_EFFCTV_DATE"])
+rmd["MDFD_DATE"] = pd.to_datetime(rmd["MDFD_DATE"])
+rmd = rmd.sort_values(["ENTITY_FOR_TEXT_MATCHING", "TERM_EFFCTV_DATE", "MDFD_DATE"])
+rmd1 = rmd.drop_duplicates(["ENTITY_FOR_TEXT_MATCHING", "TERM_EFFCTV_DATE"], keep="last")
+success_an = get_success_flag(Optima["ENTITY_FOR_TEXT_MATCHING"].unique(), rmd1["ENTITY_FOR_TEXT_MATCHING"].unique())
+Optima["ENTITY_FOR_TEXT_MATCHING"] = Optima["ENTITY_FOR_TEXT_MATCHING"].map(success_an)
+
+Optima = pd.merge(Optima, rmd1, on='ENTITY_FOR_TEXT_MATCHING', how='left')
+Optima["VALUATION_DATE"] = pd.to_datetime(Optima["VALUATION_DATE"])
+
+#joining rmd with one year old optima records to get updated status
+Optima_PrevData.columns = [s.replace(" ","_")[:30].upper() for s in Optima_PrevData.columns]
+#check adding POLICY_EFFECTIVE_DATE is making any difference or not...
+Optima_PrevData = Optima_PrevData.sort_values(["ENTITY_FOR_TEXT_MATCHING", "CLAIM_NUMBER", "ACCIDENT_DATE", "POLICY_EFFECTIVE_DATE", "VALUATION_DATE"])
+Optima_PrevData_DEDUP = Optima_PrevData.drop_duplicates(["ENTITY_FOR_TEXT_MATCHING", "CLAIM_NUMBER", "ACCIDENT_DATE", "POLICY_EFFECTIVE_DATE"], keep="last")
+Optima_PrevData_DEDUP["INDEX"] = Optima_PrevData_DEDUP.index
+success_an_1 = get_success_flag(Optima_PrevData_DEDUP["ENTITY_FOR_TEXT_MATCHING"].unique(), rmd1["ENTITY_FOR_TEXT_MATCHING"].unique())
+Optima_PrevData_DEDUP["ENTITY_FOR_TEXT_MATCHING"] = Optima_PrevData_DEDUP["ENTITY_FOR_TEXT_MATCHING"].map(success_an_1)
+Optima_PrevData_merged = pd.merge(Optima_PrevData_DEDUP, rmd1, on='ENTITY_FOR_TEXT_MATCHING', how='inner')
+Optima_PrevData_merged["VALUATION_DATE"] = pd.to_datetime(Optima_PrevData_merged["VALUATION_DATE"])
+Optima_PrevData_merged["RECORD_INSERTION_DATE"] = pd.to_datetime('today')
+
+Optima_final = pd.concat([Optima,Optima_PrevData_merged])
+
+Optima1 = Optima_final.loc[((Optima_final["VALUATION_DATE"] > (Optima_final["TERM_EFFCTV_DATE"] - pd.to_timedelta(12, unit="M"))) 
+                                    & (Optima_final["VALUATION_DATE"] <= Optima_final["TERM_EFFCTV_DATE"])) 
+                                   | Optima_final["TERM_EFFCTV_DATE"].isnull()
+                                   | Optima_final["VALUATION_DATE"].isnull()
+]
+
+#verify this
+Optima1 = Optima1.sort_values(["ENTITY_FOR_TEXT_MATCHING", "CLAIM_NUMBER", "ACCIDENT_DATE", "POLICY_EFFECTIVE_DATE", "TERM_EFFCTV_DATE", "VALUATION_DATE"])
+Optima_DEDUP = Optima1.drop_duplicates(["ENTITY_FOR_TEXT_MATCHING", "CLAIM_NUMBER", "ACCIDENT_DATE", "POLICY_EFFECTIVE_DATE", "TERM_EFFCTV_DATE"], keep="last")
+
+
+# NADB JOIN 
+
+#NADB_1 = pd.read_csv(path + "/MSG_FILES/NADB_2000_to_2010.csv")
+#NADB_2 = pd.read_csv(path + "/MSG_FILES/NADB_2011_to_2019.csv")
+#NADB = pd.concat([NADB_1, NADB_2], ignore_index=False)
+#NADB  =  pd.read_csv("/data/lake/clds/national_accounts/dev_ap/nb_loss_history/NB_Prior_Losses/Other/nadb_date.csv")
+NADB	= pull_NADB_records(year_old_date)
+#NADB	= pull_NADB_records(today,year_ahead_date)
+if NADB.empty:
+	warnings.warn("unable to pull NADB data from the given dates "%(year_old_date))
+	sys.exit("NADB data is empty for the given dates!!!")
+#Optima = pd.read_csv("/tech/appl/default/user/ht48670e/optimaAndRMD.csv")
+Opt_NADB_merged = merge_NADB(Optima_DEDUP, NADB)
+
+lhDtypes_ = loss_history_dtypes()
+Opt_NADB_merged.to_sql(name="natl_accts_loss_history_db", con=engine_CLDW, index=False, if_exists='append', schema='CLDW_SHR', dtype=lhDtypes_, chunksize=30000)
+
+#############
+lhDtypes_ = loss_history_dtypes()
+dump.to_sql(name="natl_accts_loss_history_db", con=engine_CLDW, index=False, if_exists='append', schema='ht48670', dtype=lhDtypes_, chunksize=30000)
+#############
+
+#moving files to archive folder
+#source = os.listdir("/tech/appl/default/lake/clds/national_accounts/data_files/nb_loss_history/inputs/MSGFiles")
+source = os.listdir(params["input_dir"])
+#destination = "/tech/appl/default/lake/clds/national_accounts/data_files/nb_loss_history/inputs/MSGFiles/archive"
+
+for files in source:
+	if files.endswith(".msg"):
+		shutil.move("/tech/appl/default/lake/clds/national_accounts/data_files/nb_loss_history/inputs/MSGFiles/"+files,params["input_dir"]+"/archive")
